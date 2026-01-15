@@ -1,14 +1,41 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import './index.css'; // Ensure global styles are applied if not already imported in main
+
+// Pages / Components
+import Dashboard from './pages/Dashboard';
+import Login from './components/auth/Login';
+import Signup from './components/auth/Signup';
+
+import ProjectBoard from './pages/ProjectBoard';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <p>Hello World</p>
-  )
+    <>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
+
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/project/:id" element={<ProjectBoard />} />
+        {/* Redirect unknown routes to login for now, or dashboard */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </>
+  );
 }
 
-export default App
+export default App;

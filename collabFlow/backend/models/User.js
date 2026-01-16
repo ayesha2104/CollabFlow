@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema({
         minlength: [6, 'Password must be at least 6 characters'],
         select: false
     },
+    role: {
+        type: String,
+        enum: ['admin', 'Member', 'PM', 'Client'],
+        default: 'Member'
+    },
     avatar: {
         type: String,
         default: 'https://ui-avatars.com/api/?name=User&background=random'

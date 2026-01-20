@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { toast } from 'react-toastify';
-
+import Dashboard from '../../pages/Dashboard';
 const Login = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
@@ -35,8 +35,15 @@ const Login = () => {
             // Simulate API delay
             await new Promise(resolve => setTimeout(resolve, 1500));
 
-            toast.success('Welcome back!');
-            navigate('/'); // Redirect to dashboard
+            let user = JSON.parse(localStorage.getItem('user'));
+            if (user.email === formData.email && user.password === formData.password) {
+                toast.success('Welcome back!');
+                navigate('/dashboard');
+            } else {
+                toast.error('Invalid email or password');
+
+                navigate('/login');
+            }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Login failed');
         } finally {
@@ -122,6 +129,7 @@ const Login = () => {
                         className="btn btn-primary w-full"
                         disabled={isLoading}
                         style={{ marginTop: '1rem' }}
+
                     >
                         {isLoading ? (
                             <span className="flex items-center">

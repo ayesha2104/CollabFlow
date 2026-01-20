@@ -15,7 +15,7 @@ function App() {
     <>
       <ToastContainer
         position="top-right"
-        autoClose={3000}
+        autoClose={200}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -27,11 +27,15 @@ function App() {
       />
 
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        {/* Redirect root to login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/project/:id" element={<ProjectBoard />} />
-        {/* Redirect unknown routes to login for now, or dashboard */}
+
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>

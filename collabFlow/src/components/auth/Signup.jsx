@@ -9,7 +9,8 @@ const Signup = () => {
         name: '',
         email: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        role: ''
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -22,7 +23,7 @@ const Signup = () => {
         setIsLoading(true);
 
         // Validation
-        if (!formData.name || !formData.email || !formData.password) {
+        if (!formData.name || !formData.email || !formData.password || formData.role === '') {
             toast.error('Please fill in all required fields');
             setIsLoading(false);
             return;
@@ -48,8 +49,10 @@ const Signup = () => {
             // Simulate API delay
             await new Promise(resolve => setTimeout(resolve, 1500));
 
+            localStorage.setItem('user', JSON.stringify(formData));
+
             toast.success('Account created successfully!');
-            navigate('/'); // Redirect to dashboard or login
+            navigate('/dashboard'); // Redirect to dashboard or login
         } catch (error) {
             toast.error(error.response?.data?.message || 'Signup failed');
         } finally {
@@ -108,6 +111,23 @@ const Signup = () => {
                                 style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
                             />
                         </div>
+                    </div>
+                    {/* Role Field */}
+                    <div className="form-group">
+                        <label className="form-label">Role</label>
+                        <select
+                            name="role"
+                            className="form-input"
+                            value={formData.role}
+                            onChange={handleChange}
+                            disabled={isLoading}
+                        >
+                            <option value="">Select Role</option>
+                            <option value="admin">Admin</option>
+                            <option value="Member">Team Member</option>
+                            <option value="Project Manager">Project Manager</option>
+                            <option value="Client">Client</option>
+                        </select>
                     </div>
 
                     {/* Password Field */}

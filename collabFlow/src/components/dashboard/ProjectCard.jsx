@@ -18,7 +18,7 @@ const ProjectCard = ({ project }) => {
 
     return (
         <div
-            onClick={() => navigate(`/project/${id}`)}
+            // onClick={() => navigate(`/project/${id}`)}
             className="group bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-5 cursor-pointer hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 relative overflow-hidden"
         >
             {/* Hover Gradient Overlay */}

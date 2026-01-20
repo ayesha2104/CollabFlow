@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, User, Bell, Search, Menu, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const Navbar = ({ user = { name: 'Demo User', email: 'demo@collabflow.com', avatar: null } }) => {
+const Navbar = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const user = JSON.parse(localStorage.getItem('user'));
 
     const handleLogout = () => {
         // TODO: Clear auth state
@@ -70,20 +71,10 @@ const Navbar = ({ user = { name: 'Demo User', email: 'demo@collabflow.com', avat
                                         {getInitials(user.name)}
                                     </div>
                                 </div>
-
-                                {/* Dropdown Menu */}
-                                <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right">
-                                    <div className="py-1">
-                                        <button
-                                            onClick={handleLogout}
-                                            className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
-                                        >
-                                            <LogOut size={16} />
-                                            Sign out
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
+                            <button onClick={handleLogout} className="text-slate-400 hover:text-white btn-primary rounded-xl px-4 py-2 absolute right-12 ">
+                                Logout
+                            </button>
                         </div>
                     </div>
 

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/shared/Navbar';
 import ProjectCard from '../components/dashboard/ProjectCard';
-import CreateProjectModal from '../components/dashboard/CreateProjectModal';
+// import CreateProjectModal from '../components/dashboard/CreateProjectModal';
 import { Plus, LayoutGrid, List } from 'lucide-react';
 
 const Dashboard = () => {
     const [projects, setProjects] = useState([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [viewMode, setViewMode] = useState('grid');
+    // const [isModalOpen, setIsModalOpen] = useState(false);
+    // const [viewMode, setViewMode] = useState('grid');
     const [isLoading, setIsLoading] = useState(true);
 
     // Simulate fetching initial data
@@ -46,9 +46,9 @@ const Dashboard = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const handleCreateProject = (newProject) => {
-        setProjects([newProject, ...projects]);
-    };
+    // const handleCreateProject = (newProject) => {
+    //     setProjects([newProject, ...projects]);
+    // };
 
     return (
         <div className="min-h-screen bg-[var(--bg-dark)]">
@@ -64,7 +64,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <div className="bg-slate-800 p-1 rounded-lg border border-slate-700 flex items-center">
+                        {/* <div className="bg-slate-800 p-1 rounded-lg border border-slate-700 flex items-center">
                             <button
                                 onClick={() => setViewMode('grid')}
                                 className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
@@ -77,7 +77,7 @@ const Dashboard = () => {
                             >
                                 <List size={18} />
                             </button>
-                        </div>
+                        </div> */}
 
                         <button
                             onClick={() => setIsModalOpen(true)}
@@ -127,11 +127,11 @@ const Dashboard = () => {
 
             </main>
 
-            <CreateProjectModal
+            {/* <CreateProjectModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onCreate={handleCreateProject}
-            />
+            /> */}
         </div>
     );
 };

@@ -25,6 +25,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 // Initialize Express app
 const app = express();
+
+// Enable trust proxy for Render (required for express-rate-limit behind a proxy)
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Initialize Socket.io

@@ -14,11 +14,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
         dueDate: ''
     });
 
-    // Mock active viewers (in real app, this would come from socket)
-    const [activeViewers] = useState([
-        { id: 1, name: 'Alex', avatar: null },
-        { id: 2, name: 'Sarah', avatar: null }
-    ]);
+    // Mock active viewers removed
+    const [activeViewers] = useState([]);
 
     useEffect(() => {
         if (task) {
@@ -69,23 +66,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-slate-800/50">
                     <div className="flex items-center gap-4">
                         {/* Presence Indicator */}
-                        {activeViewers.length > 0 && (
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                                <div className="flex -space-x-2">
-                                    {activeViewers.slice(0, 2).map((viewer) => (
-                                        <div
-                                            key={viewer.id}
-                                            className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 border-2 border-slate-800 flex items-center justify-center text-[10px] text-white font-medium"
-                                        >
-                                            {viewer.name.charAt(0)}
-                                        </div>
-                                    ))}
-                                </div>
-                                <span>
-                                    {activeViewers.map(v => v.name).join(' and ')} {activeViewers.length === 1 ? 'is' : 'are'} also viewing this task
-                                </span>
-                            </div>
-                        )}
+                        {/* Presence Indicator - To be implemented with real socket data */}
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-semibold rounded-full border border-blue-500/30 uppercase">
@@ -165,7 +146,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
                         <div className="space-y-4">
                             <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-4">
                                 <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Properties</div>
-                                
+
                                 {/* Assignee */}
                                 <div>
                                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Assignee</label>
@@ -207,12 +188,11 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
                                                 key={priority}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, priority: priority === 'Med' ? 'Medium' : priority })}
-                                                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                                                    formData.priority.toLowerCase() === priority.toLowerCase() || 
-                                                    (priority === 'Med' && formData.priority === 'Medium')
+                                                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${formData.priority.toLowerCase() === priority.toLowerCase() ||
+                                                        (priority === 'Med' && formData.priority === 'Medium')
                                                         ? 'bg-blue-600 text-white'
                                                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                                }`}
+                                                    }`}
                                             >
                                                 {priority}
                                             </button>

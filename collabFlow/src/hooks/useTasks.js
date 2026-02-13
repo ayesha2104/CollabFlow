@@ -164,6 +164,8 @@ export const useTasks = (projectId) => {
             // extractResponseData returns res.data.data found in extractResponseData helper usually
             const tasksData = extractResponseData(response);
 
+            console.log('[useTasks] Fetched tasks data:', tasksData);
+
             // tasksData should be an array of tasks based on getTasksByProject controller
 
             const tasksArray = Array.isArray(tasksData) ? tasksData : [];

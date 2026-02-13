@@ -13,16 +13,17 @@ const isProjectMember = (project, userId) => {
 // @access  Private (Project member)
 const getTasksByProject = async (req, res, next) => {
     try {
+        console.log(`[getTasksByProject] Fetching tasks for project: ${req.params.projectId} or ${req.params.id}`);
         // req.project is set by isProjectMember middleware
-        const { projectId } = req.params;
-
-        // If middleware didn't run (e.g. strict dependency), fetching manually
-        // But we plan to use middleware in routes
+        // Route parameter might be :id or :projectId depending on where it's mounted
+        const projectId = req.params.projectId || req.params.id;
 
         const tasks = await Task.find({ project: projectId })
             .populate('assignee', 'name email avatar')
             .populate('createdBy', 'name email avatar')
             .sort({ createdAt: -1 });
+
+        console.log(`[getTasksByProject] Found ${tasks.length} tasks`);
 
         res.status(200).json({
             success: true,
@@ -30,6 +31,7 @@ const getTasksByProject = async (req, res, next) => {
             data: tasks
         });
     } catch (error) {
+        console.error('[getTasksByProject] Error:', error);
         next(error);
     }
 };
@@ -39,6 +41,7 @@ const getTasksByProject = async (req, res, next) => {
 // @access  Private (Project member)
 const createTask = async (req, res, next) => {
     try {
+        console.log('[createTask] Request body:', req.body);
         const {
             projectId,
             title,
@@ -84,6 +87,8 @@ const createTask = async (req, res, next) => {
             createdBy: req.user._id
         });
 
+        console.log('[createTask] Task created:', task._id);
+
         // Populate task with user info
         const populatedTask = await Task.findById(task._id)
             .populate('assignee', 'name email avatar')
@@ -116,6 +121,7 @@ const createTask = async (req, res, next) => {
             data: populatedTask
         });
     } catch (error) {
+        console.error('[createTask] Error:', error);
         next(error);
     }
 };

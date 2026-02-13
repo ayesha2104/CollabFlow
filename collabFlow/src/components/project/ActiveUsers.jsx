@@ -27,7 +27,7 @@ const getInitials = (name) => {
         .slice(0, 2);
 };
 
-// Mock active users removed
+
 
 
 const UserAvatar = ({ user, size = 'default', showStatus = true }) => {

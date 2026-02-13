@@ -7,15 +7,15 @@ const ProjectCard = ({ project }) => {
 
     // Mock data fallback if props are missing
     const {
-        id = 1,
-        name = "Project Name",
-        description = "No description provided.",
-        taskCount = 0,
-        activeTaskCount = 0,
-        members = [], // Array of user objects or numbers
-        updatedAt = "2h ago",
-        status = "on_track", // on_track, high_priority, planning
-        icon = "folder" // folder, pen, megaphone, smartphone, file
+        id,
+        name,
+        description,
+        taskCount,
+        activeTaskCount,
+        members,
+        updatedAt,
+        status,
+        icon
     } = project || {};
 
     const handleClick = () => {
@@ -31,7 +31,8 @@ const ProjectCard = ({ project }) => {
     };
 
     // Calculate progress (mock based on tasks)
-    const progressPercentage = project?.progress || Math.min(Math.max(20, Math.random() * 80), 100);
+    // Calculate progress
+    const progressPercentage = project?.progress || 0;
 
     // Status badge config
     const statusConfig = {
@@ -71,7 +72,7 @@ const ProjectCard = ({ project }) => {
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${statusInfo.color}`}>
                                 {statusInfo.label}
                             </span>
-                            <button 
+                            <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     // Handle options menu
@@ -109,8 +110,8 @@ const ProjectCard = ({ project }) => {
                     <div className="flex items-center justify-between">
                         <div className="flex -space-x-2">
                             {[...Array(Math.min(3, members.length || 1))].map((_, i) => (
-                                <div 
-                                    key={i} 
+                                <div
+                                    key={i}
                                     className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 border-2 border-slate-800 flex items-center justify-center text-[10px] text-white font-medium"
                                 >
                                     {getMemberInitials(members[i], i)}

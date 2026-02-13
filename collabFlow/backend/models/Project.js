@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { PROJECT_ROLES } = require('../config/constants');
 
 const projectSchema = new mongoose.Schema({
     name: {
@@ -24,8 +25,8 @@ const projectSchema = new mongoose.Schema({
         },
         role: {
             type: String,
-            enum: ['owner', 'pm', 'member', 'client'], // Align with user roles
-            default: 'member'
+            enum: Object.values(PROJECT_ROLES), // Align with user roles
+            default: PROJECT_ROLES.MEMBER
         },
         joinedAt: {
             type: Date,
@@ -54,7 +55,7 @@ projectSchema.pre('save', function (next) {
     if (!ownerInMembers) {
         this.members.push({
             user: this.owner,
-            role: 'owner'
+            role: PROJECT_ROLES.OWNER
         });
     }
 

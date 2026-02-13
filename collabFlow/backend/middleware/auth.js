@@ -60,7 +60,17 @@ const protect = async (req, res, next) => {
 const isProjectMember = async (req, res, next) => {
     try {
         const Project = require('../models/Project');
-        const project = await Project.findById(req.params.id || req.params.projectId);
+        // Check for project ID in params (id or projectId) or body
+        const projectId = req.params.id || req.params.projectId || req.body.projectId;
+
+        if (!projectId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Project ID is required'
+            });
+        }
+
+        const project = await Project.findById(projectId);
 
         if (!project) {
             return res.status(404).json({

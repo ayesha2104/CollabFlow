@@ -37,49 +37,8 @@ const activityConfig = {
     }
 };
 
-// Mock activities for MVP
-const mockActivities = [
-    {
-        id: 1,
-        type: 'task_moved',
-        user: { id: 1, name: 'Alice' },
-        task: { id: 'task-1', title: 'Design Landing Page' },
-        details: { from: 'To Do', to: 'In Progress' },
-        timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString() // 2 min ago
-    },
-    {
-        id: 2,
-        type: 'task_created',
-        user: { id: 2, name: 'Bob' },
-        task: { id: 'task-2', title: 'Setup React Project' },
-        details: {},
-        timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString() // 5 min ago
-    },
-    {
-        id: 3,
-        type: 'task_assigned',
-        user: { id: 1, name: 'You' },
-        task: { id: 'task-3', title: 'Implement Auth' },
-        details: { assignee: 'Charlie' },
-        timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString() // 10 min ago
-    },
-    {
-        id: 4,
-        type: 'task_updated',
-        user: { id: 3, name: 'Charlie' },
-        task: { id: 'task-4', title: 'Database Schema' },
-        details: { field: 'priority', value: 'High' },
-        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString() // 30 min ago
-    },
-    {
-        id: 5,
-        type: 'task_moved',
-        user: { id: 2, name: 'Bob' },
-        task: { id: 'task-5', title: 'API Integration' },
-        details: { from: 'In Progress', to: 'Done' },
-        timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString() // 1 hour ago
-    }
-];
+// Mock activities removed
+
 
 const ActivityItem = ({ activity }) => {
     const config = activityConfig[activity.type] || activityConfig.task_updated;
@@ -186,24 +145,15 @@ const ActivityFeed = ({ projectId, isOpen = true, onToggle }) => {
         const fetchActivities = async () => {
             setIsLoading(true);
 
-            const config = (await import('../../config')).default;
-            const USE_MOCK_API = config.USE_MOCK_API;
-
-            if (USE_MOCK_API) {
-                // Mock implementation
-                await new Promise(resolve => setTimeout(resolve, 500));
-                setActivities(mockActivities);
-            } else {
-                try {
-                    // Real API call
-                    const { activitiesAPI } = await import('../../services/api');
-                    const response = await activitiesAPI.getByProject(projectId, { limit: 20 });
-                    const activitiesData = response.data.activities || response.data.data || [];
-                    setActivities(activitiesData);
-                } catch (error) {
-                    console.error('Failed to fetch activities:', error);
-                    setActivities([]);
-                }
+            try {
+                // Real API call
+                const { activitiesAPI } = await import('../../services/api');
+                const response = await activitiesAPI.getByProject(projectId, { limit: 20 });
+                const activitiesData = response.data.activities || response.data.data || [];
+                setActivities(activitiesData);
+            } catch (error) {
+                console.error('Failed to fetch activities:', error);
+                setActivities([]);
             }
 
             setIsLoading(false);
@@ -224,7 +174,7 @@ const ActivityFeed = ({ projectId, isOpen = true, onToggle }) => {
     useActivityEvents(addActivity);
 
     const loadMore = async () => {
-        // Mock load more
+        // Load more implementation to be added
         setHasMore(false);
     };
 

@@ -96,7 +96,8 @@ export const tasksAPI = {
     create: (data) => api.post('/tasks', data),
     update: (id, data) => api.put(`/tasks/${id}`, data),
     delete: (id) => api.delete(`/tasks/${id}`),
-    move: (id, status) => api.patch(`/tasks/${id}/move`, { status })
+    move: (id, newStatus) =>
+        api.patch(`/tasks/${id}/move`, { newStatus })
 };
 
 // Activities endpoints

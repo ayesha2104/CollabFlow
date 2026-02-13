@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const { TASK_STATUS, PRIORITY_LEVELS } = require('../config/constants');
 const {
     createTask,
     updateTask,
     deleteTask,
-    moveTask
+    moveTask,
+    getTasksByProject
 } = require('../controllers/taskController');
 // const { protect } = require('../middleware/auth');
 const validate = require('../middleware/validator');
@@ -30,11 +32,11 @@ const createTaskValidation = [
         .withMessage('Description cannot be more than 2000 characters'),
     body('status')
         .optional()
-        .isIn(['todo', 'in_progress', 'done'])
+        .isIn(Object.values(TASK_STATUS))
         .withMessage('Invalid status'),
     body('priority')
         .optional()
-        .isIn(['low', 'medium', 'high'])
+        .isIn(Object.values(PRIORITY_LEVELS))
         .withMessage('Invalid priority'),
     body('dueDate')
         .optional()
@@ -57,11 +59,11 @@ const updateTaskValidation = [
         .withMessage('Description cannot be more than 2000 characters'),
     body('status')
         .optional()
-        .isIn(['todo', 'in_progress', 'done'])
+        .isIn(Object.values(TASK_STATUS))
         .withMessage('Invalid status'),
     body('priority')
         .optional()
-        .isIn(['low', 'medium', 'high'])
+        .isIn(Object.values(PRIORITY_LEVELS))
         .withMessage('Invalid priority'),
     body('dueDate')
         .optional()
@@ -73,7 +75,7 @@ const moveTaskValidation = [
     body('newStatus')
         .notEmpty()
         .withMessage('New status is required')
-        .isIn(['todo', 'in_progress', 'done'])
+        .isIn(Object.values(TASK_STATUS))
         .withMessage('Invalid status')
 ];
 
@@ -82,7 +84,7 @@ router.use(protect);
 
 // Task routes - IMPORTANT: Define specific routes before parameterized routes
 router.post('/', createTaskValidation, validate, createTask);
-router.put('/:id/move', moveTaskValidation, validate, moveTask);
+router.patch('/:id/move', moveTaskValidation, validate, moveTask);
 router.put('/:id', updateTaskValidation, validate, updateTask);
 router.delete('/:id', protect, authorize('admin', 'PM'), deleteTask);
 

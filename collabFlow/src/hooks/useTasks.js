@@ -12,7 +12,8 @@ import {
 import config from '../config';
 
 // Flag to toggle between mock and real API
-const USE_MOCK_API = config.USE_MOCK_API;
+// Flag to toggle between mock and real API
+// const USE_MOCK_API = config.USE_MOCK_API; // Removed
 
 export const useTasks = (projectId) => {
     const [tasks, setTasks] = useState({});
@@ -158,92 +159,40 @@ export const useTasks = (projectId) => {
         setError(null);
 
         try {
-            if (USE_MOCK_API) {
-                // Mock implementation
-                await new Promise(resolve => setTimeout(resolve, 500));
+            // Real API call - fetch tasks directly
+            const response = await tasksAPI.getByProject(id);
+            // extractResponseData returns res.data.data found in extractResponseData helper usually
+            const tasksData = extractResponseData(response);
 
-                const storedTasks = localStorage.getItem(`tasks_${id}`);
-                if (storedTasks) {
-                    const data = JSON.parse(storedTasks);
-                    setTasks(data.tasks || {});
-                    setColumns(data.columns || {});
-                    setColumnOrder(data.columnOrder || []);
-                } else {
-                    // Initialize with mock data
-                    const mockData = {
-                        tasks: {
-                            'task-1': { id: 'task-1', title: 'Design Landing Page', description: '', priority: 'High', assignee: 'Alice', dueDate: 'Oct 24', status: 'To Do' },
-                            'task-2': { id: 'task-2', title: 'Setup React Project', description: '', priority: 'High', assignee: 'Bob', dueDate: 'Oct 20', status: 'To Do' },
-                            'task-3': { id: 'task-3', title: 'Implement Auth', description: '', priority: 'Medium', assignee: 'Charlie', dueDate: 'Oct 25', status: 'In Progress' },
-                            'task-4': { id: 'task-4', title: 'Database Schema', description: '', priority: 'Low', assignee: 'Alice', dueDate: 'Oct 28', status: 'Done' }
-                        },
-                        columns: {
-                            'col-1': { id: 'col-1', title: 'To Do', taskIds: ['task-1', 'task-2'] },
-                            'col-2': { id: 'col-2', title: 'In Progress', taskIds: ['task-3'] },
-                            'col-3': { id: 'col-3', title: 'Done', taskIds: ['task-4'] }
-                        },
-                        columnOrder: ['col-1', 'col-2', 'col-3']
-                    };
+            // tasksData should be an array of tasks based on getTasksByProject controller
 
-                    localStorage.setItem(`tasks_${id}`, JSON.stringify(mockData));
-                    setTasks(mockData.tasks);
-                    setColumns(mockData.columns);
-                    setColumnOrder(mockData.columnOrder);
-                }
-            } else {
-                // Real API call - fetch project which includes tasks
-                const response = await projectsAPI.getById(id);
-                const data = extractResponseData(response);
+            const tasksArray = Array.isArray(tasksData) ? tasksData : [];
 
-                if (data.tasks && data.columns && data.columnOrder) {
-                    // Standard board format
-                    const transformedTasks = {};
-                    Object.keys(data.tasks).forEach(taskId => {
-                        transformedTasks[taskId] = transformTaskFromBackend(data.tasks[taskId]);
-                    });
+            const transformedTasks = {};
+            const col1Ids = [];
+            const col2Ids = [];
+            const col3Ids = [];
 
-                    const transformedColumns = {};
-                    Object.keys(data.columns).forEach(colId => {
-                        const col = data.columns[colId];
-                        transformedColumns[colId] = {
-                            ...col,
-                            title: toFrontendStatus(col.title)
-                        };
-                    });
+            tasksArray.forEach(task => {
+                const transformed = transformTaskFromBackend(task);
+                transformedTasks[transformed.id] = transformed;
 
-                    setTasks(transformedTasks);
-                    setColumns(transformedColumns);
-                    setColumnOrder(data.columnOrder);
-                } else {
-                    // Handle flat array or other formats
-                    const tasksArray = Array.isArray(data) ? data : (data.tasks ? Object.values(data.tasks) : []);
+                // Map status to columns
+                if (transformed.status === 'In Progress') col2Ids.push(transformed.id);
+                else if (transformed.status === 'Done') col3Ids.push(transformed.id);
+                else col1Ids.push(transformed.id);
+            });
 
-                    const transformedTasks = {};
-                    const col1Ids = [];
-                    const col2Ids = [];
-                    const col3Ids = [];
+            const defaultColumns = {
+                'col-1': { id: 'col-1', title: 'To Do', taskIds: col1Ids },
+                'col-2': { id: 'col-2', title: 'In Progress', taskIds: col2Ids },
+                'col-3': { id: 'col-3', title: 'Done', taskIds: col3Ids }
+            };
 
-                    tasksArray.forEach(task => {
-                        const transformed = transformTaskFromBackend(task);
-                        transformedTasks[transformed.id] = transformed;
+            setTasks(transformedTasks);
+            setColumns(defaultColumns);
+            setColumnOrder(['col-1', 'col-2', 'col-3']);
 
-                        // Map status to columns
-                        if (transformed.status === 'In Progress') col2Ids.push(transformed.id);
-                        else if (transformed.status === 'Done') col3Ids.push(transformed.id);
-                        else col1Ids.push(transformed.id);
-                    });
-
-                    const defaultColumns = {
-                        'col-1': { id: 'col-1', title: 'To Do', taskIds: col1Ids },
-                        'col-2': { id: 'col-2', title: 'In Progress', taskIds: col2Ids },
-                        'col-3': { id: 'col-3', title: 'Done', taskIds: col3Ids }
-                    };
-
-                    setTasks(transformedTasks);
-                    setColumns(defaultColumns);
-                    setColumnOrder(['col-1', 'col-2', 'col-3']);
-                }
-            }
         } catch (err) {
             const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to fetch tasks';
             setError(errorMessage);
@@ -258,18 +207,9 @@ export const useTasks = (projectId) => {
     const saveTasks = useCallback(async (newTasks, newColumns, id) => {
         const targetProjectId = id || projectId;
 
-        if (USE_MOCK_API) {
-            const data = {
-                tasks: newTasks,
-                columns: newColumns,
-                columnOrder
-            };
-            localStorage.setItem(`tasks_${targetProjectId}`, JSON.stringify(data));
-        } else {
-            // In real API, tasks are saved individually, so this might not be needed
-            // Or you could have a bulk update endpoint
-            // For now, we'll rely on individual task API calls
-        }
+        // In real API, tasks are saved individually, so this might not be needed
+        // Or you could have a bulk update endpoint
+        // For now, we'll rely on individual task API calls
     }, [projectId, columnOrder]);
 
     // Create task
@@ -286,49 +226,28 @@ export const useTasks = (projectId) => {
         };
 
         try {
-            if (USE_MOCK_API) {
-                const newTaskId = `task-${Date.now()}`;
-                const newTask = { id: newTaskId, ...newTaskData };
+            // Transform to backend format before sending
+            const backendTaskData = transformTaskToBackend(newTaskData);
 
-                const newTasks = { ...tasks, [newTaskId]: newTask };
-                const newColumns = {
-                    ...columns,
-                    [columnId]: {
-                        ...columns[columnId],
-                        taskIds: [...columns[columnId].taskIds, newTaskId]
-                    }
-                };
+            // Real API call
+            const response = await tasksAPI.create(backendTaskData);
+            const taskData = extractResponseData(response);
+            const newTask = transformTaskFromBackend(taskData);
 
-                setTasks(newTasks);
-                setColumns(newColumns);
-                await saveTasks(newTasks, newColumns, projectId);
+            const newTasks = { ...tasks, [newTask.id]: newTask };
+            const newColumns = {
+                ...columns,
+                [columnId]: {
+                    ...columns[columnId],
+                    taskIds: [...columns[columnId].taskIds, newTask.id]
+                }
+            };
 
-                emitTaskCreated(newTask, projectId);
-                return newTask;
-            } else {
-                // Transform to backend format before sending
-                const backendTaskData = transformTaskToBackend(newTaskData);
+            setTasks(newTasks);
+            setColumns(newColumns);
 
-                // Real API call
-                const response = await tasksAPI.create(backendTaskData);
-                const taskData = extractResponseData(response);
-                const newTask = transformTaskFromBackend(taskData);
-
-                const newTasks = { ...tasks, [newTask.id]: newTask };
-                const newColumns = {
-                    ...columns,
-                    [columnId]: {
-                        ...columns[columnId],
-                        taskIds: [...columns[columnId].taskIds, newTask.id]
-                    }
-                };
-
-                setTasks(newTasks);
-                setColumns(newColumns);
-
-                // Note: Backend will broadcast task:created via Socket.io
-                return newTask;
-            }
+            // Note: Backend will broadcast task:created via Socket.io
+            return newTask;
         } catch (err) {
             const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to create task';
             toast.error(errorMessage);
@@ -341,30 +260,19 @@ export const useTasks = (projectId) => {
         if (!tasks[taskId]) return null;
 
         try {
-            if (USE_MOCK_API) {
-                const updatedTask = { ...tasks[taskId], ...updates };
-                const newTasks = { ...tasks, [taskId]: updatedTask };
+            // Transform updates to backend format
+            const backendUpdates = transformTaskToBackend(updates);
 
-                setTasks(newTasks);
-                await saveTasks(newTasks, columns, projectId);
+            // Real API call
+            const response = await tasksAPI.update(taskId, backendUpdates);
+            const taskData = extractResponseData(response);
+            const updatedTask = transformTaskFromBackend(taskData);
 
-                emitTaskUpdated(taskId, updates, projectId);
-                return updatedTask;
-            } else {
-                // Transform updates to backend format
-                const backendUpdates = transformTaskToBackend(updates);
+            const newTasks = { ...tasks, [taskId]: updatedTask };
+            setTasks(newTasks);
 
-                // Real API call
-                const response = await tasksAPI.update(taskId, backendUpdates);
-                const taskData = extractResponseData(response);
-                const updatedTask = transformTaskFromBackend(taskData);
-
-                const newTasks = { ...tasks, [taskId]: updatedTask };
-                setTasks(newTasks);
-
-                // Note: Backend will broadcast task:updated via Socket.io
-                return updatedTask;
-            }
+            // Note: Backend will broadcast task:updated via Socket.io
+            return updatedTask;
         } catch (err) {
             const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to update task';
             toast.error(errorMessage);
@@ -375,43 +283,24 @@ export const useTasks = (projectId) => {
     // Delete task
     const deleteTask = useCallback(async (taskId) => {
         try {
-            if (USE_MOCK_API) {
-                const newTasks = { ...tasks };
-                delete newTasks[taskId];
+            // Real API call
+            await tasksAPI.delete(taskId);
 
-                const newColumns = { ...columns };
-                Object.keys(newColumns).forEach(colId => {
-                    newColumns[colId] = {
-                        ...newColumns[colId],
-                        taskIds: newColumns[colId].taskIds.filter(id => id !== taskId)
-                    };
-                });
+            const newTasks = { ...tasks };
+            delete newTasks[taskId];
 
-                setTasks(newTasks);
-                setColumns(newColumns);
-                await saveTasks(newTasks, newColumns, projectId);
+            const newColumns = { ...columns };
+            Object.keys(newColumns).forEach(colId => {
+                newColumns[colId] = {
+                    ...newColumns[colId],
+                    taskIds: newColumns[colId].taskIds.filter(id => id !== taskId)
+                };
+            });
 
-                emitTaskDeleted(taskId, projectId);
-            } else {
-                // Real API call
-                await tasksAPI.delete(taskId);
+            setTasks(newTasks);
+            setColumns(newColumns);
 
-                const newTasks = { ...tasks };
-                delete newTasks[taskId];
-
-                const newColumns = { ...columns };
-                Object.keys(newColumns).forEach(colId => {
-                    newColumns[colId] = {
-                        ...newColumns[colId],
-                        taskIds: newColumns[colId].taskIds.filter(id => id !== taskId)
-                    };
-                });
-
-                setTasks(newTasks);
-                setColumns(newColumns);
-
-                emitTaskDeleted(taskId, projectId);
-            }
+            emitTaskDeleted(taskId, projectId);
         } catch (err) {
             const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to delete task';
             toast.error(errorMessage);
@@ -437,18 +326,14 @@ export const useTasks = (projectId) => {
                 };
 
                 setColumns(newColumns);
-                if (USE_MOCK_API) {
-                    await saveTasks(tasks, newColumns, projectId);
-                }
+                // Note: Real API might not support same-column reorder yet if it relies solely on status
             } else {
                 // Moving between columns - update status via API
                 const frontendStatus = destColumn.title;
                 const backendStatus = toBackendStatus(frontendStatus);
 
-                if (!USE_MOCK_API) {
-                    // Real API call to update task status
-                    await tasksAPI.move(taskId, backendStatus);
-                }
+                // Real API call to update task status
+                await tasksAPI.move(taskId, backendStatus);
 
                 const sourceTaskIds = Array.from(sourceColumn.taskIds);
                 sourceTaskIds.splice(sourceIndex, 1);
@@ -468,10 +353,6 @@ export const useTasks = (projectId) => {
 
                 setTasks(newTasks);
                 setColumns(newColumns);
-
-                if (USE_MOCK_API) {
-                    await saveTasks(newTasks, newColumns, projectId);
-                }
 
                 // Emit socket event (backend expects backend format)
                 emitTaskMoved(taskId, toBackendStatus(sourceColumn.title), toBackendStatus(destColumn.title), projectId);

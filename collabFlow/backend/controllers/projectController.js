@@ -2,11 +2,12 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Activity = require('../models/Activity');
 const User = require('../models/User');
+const { PROJECT_ROLES } = require('../config/constants');
 
 // @desc    Get all projects for user
 // @route   GET /api/projects
 // @access  Private
-const getProjects = async (req, res) => {
+const getProjects = async (req, res, next) => {
     try {
         const projects = await Project.find({
             'members.user': req.user._id
@@ -28,14 +29,15 @@ const getProjects = async (req, res) => {
 // @desc    Create project
 // @route   POST /api/projects
 // @access  Private
-const createProject = async (req, res) => {
+const createProject = async (req, res, next) => {
     try {
         const { name, description } = req.body;
 
         const project = await Project.create({
             name,
             description,
-            owner: req.user._id
+            owner: req.user._id,
+            members: [{ user: req.user._id, role: PROJECT_ROLES.OWNER }] // Ensure owner is added as member with owner role
         });
 
         // Log activity
@@ -61,11 +63,14 @@ const createProject = async (req, res) => {
     }
 };
 
-// @desc    Get single project with tasks
+// @desc    Get single project (metadata only)
 // @route   GET /api/projects/:id
 // @access  Private (Project member)
-const getProject = async (req, res) => {
+const getProject = async (req, res, next) => {
     try {
+        // req.project is already populated by isProjectMember if you update lines 69-70 to just use req.project
+        // But for safety let's re-fetch if needed or use existing logic but lighter
+
         const project = await Project.findById(req.params.id)
             .populate('owner', 'name email avatar')
             .populate('members.user', 'name email avatar');
@@ -77,18 +82,11 @@ const getProject = async (req, res) => {
             });
         }
 
-        // Get tasks for this project
-        const tasks = await Task.find({ project: project._id })
-            .populate('assignee', 'name email avatar')
-            .populate('createdBy', 'name email avatar')
-            .sort({ createdAt: -1 });
+        // Removed: Fetching all tasks here. Tasks should be fetched via /api/projects/:id/tasks
 
         res.status(200).json({
             success: true,
-            data: {
-                project,
-                tasks
-            }
+            data: project
         });
     } catch (error) {
         next(error);
@@ -98,7 +96,7 @@ const getProject = async (req, res) => {
 // @desc    Update project
 // @route   PUT /api/projects/:id
 // @access  Private (Project owner)
-const updateProject = async (req, res) => {
+const updateProject = async (req, res, next) => {
     try {
         const { name, description } = req.body;
 
@@ -139,7 +137,7 @@ const updateProject = async (req, res) => {
 // @desc    Delete project
 // @route   DELETE /api/projects/:id
 // @access  Private (Project owner)
-const deleteProject = async (req, res) => {
+const deleteProject = async (req, res, next) => {
     try {
         const project = await Project.findById(req.params.id);
 
@@ -171,7 +169,7 @@ const deleteProject = async (req, res) => {
 // @desc    Invite members to project
 // @route   POST /api/projects/:id/invite
 // @access  Private (Project owner or PM)
-const inviteMembers = async (req, res) => {
+const inviteMembers = async (req, res, next) => {
     try {
         const { emails } = req.body;
 
@@ -211,13 +209,13 @@ const inviteMembers = async (req, res) => {
             );
 
             if (!isMember) {
-                let projectRole = 'member';
+                let projectRole = PROJECT_ROLES.MEMBER;
 
-                // Set project role based on user's global role
+                // Set project role based on user's global role (Optional business logic)
                 if (user.role === 'PM' || user.role === 'admin') {
-                    projectRole = 'pm';
+                    projectRole = PROJECT_ROLES.PM; // Using constant
                 } else if (user.role === 'Client') {
-                    projectRole = 'client';
+                    projectRole = PROJECT_ROLES.CLIENT; // Using constant
                 }
 
                 project.members.push({
@@ -285,7 +283,7 @@ const inviteMembers = async (req, res) => {
 // @desc    Remove member from project
 // @route   DELETE /api/projects/:projectId/members/:userId
 // @access  Private (Project owner or PM)
-const removeMember = async (req, res) => {
+const removeMember = async (req, res, next) => {
     try {
         const { projectId, userId } = req.params;
 
@@ -357,12 +355,12 @@ const removeMember = async (req, res) => {
 // @desc    Update member role in project
 // @route   PUT /api/projects/:projectId/members/:userId
 // @access  Private (Project owner or PM)
-const updateMemberRole = async (req, res) => {
+const updateMemberRole = async (req, res, next) => {
     try {
         const { projectId, userId } = req.params;
         const { role } = req.body;
 
-        if (!role || !['owner', 'pm', 'member', 'client'].includes(role)) {
+        if (!role || !Object.values(PROJECT_ROLES).includes(role)) {
             return res.status(400).json({
                 success: false,
                 error: 'Valid role is required (owner, pm, member, client)'

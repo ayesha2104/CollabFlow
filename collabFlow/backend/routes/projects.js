@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const { PROJECT_ROLES } = require('../config/constants');
 const {
     getProjects,
     createProject,
@@ -11,6 +12,7 @@ const {
     removeMember,
     updateMemberRole
 } = require('../controllers/projectController');
+const { getTasksByProject } = require('../controllers/taskController');
 const { protect, isProjectMember, isProjectOwner, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validator');
 
@@ -41,8 +43,8 @@ const updateMemberRoleValidation = [
     body('role')
         .notEmpty()
         .withMessage('Role is required')
-        .isIn(['owner', 'pm', 'member', 'client'])
-        .withMessage('Role must be owner, pm, member, or client')
+        .isIn(Object.values(PROJECT_ROLES))
+        .withMessage('Role must be valid')
 ];
 
 // All routes require authentication
@@ -54,6 +56,7 @@ router.post('/', createProjectValidation, validate, createProject);
 
 // Project-specific routes
 router.get('/:id', isProjectMember, getProject);
+router.get('/:id/tasks', isProjectMember, getTasksByProject); // New endpoint for tasks
 router.put('/:id', isProjectOwner, createProjectValidation, validate, updateProject);
 router.delete('/:id', isProjectOwner, deleteProject);
 

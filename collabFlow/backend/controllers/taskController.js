@@ -1,11 +1,43 @@
 const Task = require('../models/Task');
 const Activity = require('../models/Activity');
 const Project = require('../models/Project');
+const { TASK_STATUS, PRIORITY_LEVELS } = require('../config/constants');
+
+// Helper to check project membership
+const isProjectMember = (project, userId) => {
+    return project.members.some(member => member.user.toString() === userId.toString());
+};
+
+// @desc    Get tasks by project
+// @route   GET /api/projects/:projectId/tasks
+// @access  Private (Project member)
+const getTasksByProject = async (req, res, next) => {
+    try {
+        // req.project is set by isProjectMember middleware
+        const { projectId } = req.params;
+
+        // If middleware didn't run (e.g. strict dependency), fetching manually
+        // But we plan to use middleware in routes
+
+        const tasks = await Task.find({ project: projectId })
+            .populate('assignee', 'name email avatar')
+            .populate('createdBy', 'name email avatar')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: tasks.length,
+            data: tasks
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 // @desc    Create task
 // @route   POST /api/tasks
 // @access  Private (Project member)
-const createTask = async (req, res) => {
+const createTask = async (req, res, next) => {
     try {
         const {
             projectId,
@@ -17,33 +49,22 @@ const createTask = async (req, res) => {
             dueDate
         } = req.body;
 
-        // Validate project membership
-        const project = await Project.findById(projectId);
+        // Note: isProjectMember middleware can handle the membership check if applied to route
+        // For safety/redundancy or if route doesn't use it, we check here
+        let project = req.project;
         if (!project) {
-            return res.status(404).json({
-                success: false,
-                error: 'Project not found'
-            });
-        }
-
-        const isMember = project.members.some(
-            member => member.user.toString() === req.user._id.toString()
-        );
-
-        if (!isMember) {
-            return res.status(403).json({
-                success: false,
-                error: 'Not a project member'
-            });
+            project = await Project.findById(projectId);
+            if (!project) {
+                return res.status(404).json({ success: false, error: 'Project not found' });
+            }
+            if (!isProjectMember(project, req.user._id)) {
+                return res.status(403).json({ success: false, error: 'Not a project member' });
+            }
         }
 
         // Validate assignee is a project member
         if (assignee) {
-            const assigneeIsMember = project.members.some(
-                member => member.user.toString() === assignee
-            );
-
-            if (!assigneeIsMember) {
+            if (!isProjectMember(project, assignee)) {
                 return res.status(400).json({
                     success: false,
                     error: 'Assignee must be a project member'
@@ -56,8 +77,8 @@ const createTask = async (req, res) => {
             project: projectId,
             title,
             description,
-            status: status || 'todo',
-            priority: priority || 'medium',
+            status: status || TASK_STATUS.TODO,
+            priority: priority || PRIORITY_LEVELS.MEDIUM,
             assignee,
             dueDate,
             createdBy: req.user._id
@@ -102,10 +123,10 @@ const createTask = async (req, res) => {
 // @desc    Update task
 // @route   PUT /api/tasks/:id
 // @access  Private (Project member)
-const updateTask = async (req, res) => {
+const updateTask = async (req, res, next) => {
     try {
         const task = await Task.findById(req.params.id)
-            .populate('project', '_id');
+            .populate('project');
 
         if (!task) {
             return res.status(404).json({
@@ -115,12 +136,8 @@ const updateTask = async (req, res) => {
         }
 
         // Validate project membership
-        const project = await Project.findById(task.project._id);
-        const isMember = project.members.some(
-            member => member.user.toString() === req.user._id.toString()
-        );
-
-        if (!isMember) {
+        const project = task.project;
+        if (!isProjectMember(project, req.user._id)) {
             return res.status(403).json({
                 success: false,
                 error: 'Not a project member'
@@ -129,11 +146,7 @@ const updateTask = async (req, res) => {
 
         // Validate assignee is a project member
         if (req.body.assignee) {
-            const assigneeIsMember = project.members.some(
-                member => member.user.toString() === req.body.assignee
-            );
-
-            if (!assigneeIsMember) {
+            if (!isProjectMember(project, req.body.assignee)) {
                 return res.status(400).json({
                     success: false,
                     error: 'Assignee must be a project member'
@@ -143,10 +156,13 @@ const updateTask = async (req, res) => {
 
         // Track changes for activity log
         const changes = {};
-        const oldTask = { ...task._doc };
 
         Object.keys(req.body).forEach(key => {
-            if (task[key] !== req.body[key]) {
+            // Simple comparison - logic could be more robust for arrays/dates
+            if (task[key] !== req.body[key] && req.body[key] !== undefined) {
+                // Skip if checking string vs objectId mismatch unless we convert
+                if (key === 'assignee' && task.assignee && task.assignee.toString() === req.body.assignee) return;
+
                 changes[key] = {
                     old: task[key],
                     new: req.body[key]
@@ -167,7 +183,7 @@ const updateTask = async (req, res) => {
 
         // Log activity
         const activity = await Activity.create({
-            project: task.project._id,
+            project: project._id,
             user: req.user._id,
             action: 'task_updated',
             task: task._id,
@@ -178,12 +194,12 @@ const updateTask = async (req, res) => {
         });
 
         // Broadcast real-time update
-        req.io.to(task.project._id.toString()).emit('task:updated', {
+        req.io.to(project._id.toString()).emit('task:updated', {
             taskId: task._id,
             updates: req.body
         });
 
-        req.io.to(task.project._id.toString()).emit('activity:new', {
+        req.io.to(project._id.toString()).emit('activity:new', {
             activity: await Activity.findById(activity._id)
                 .populate('user', 'name avatar')
         });
@@ -200,7 +216,7 @@ const updateTask = async (req, res) => {
 // @desc    Delete task
 // @route   DELETE /api/tasks/:id
 // @access  Private (Project member)
-const deleteTask = async (req, res) => {
+const deleteTask = async (req, res, next) => {
     try {
         const task = await Task.findById(req.params.id);
 
@@ -213,11 +229,7 @@ const deleteTask = async (req, res) => {
 
         // Validate project membership
         const project = await Project.findById(task.project);
-        const isMember = project.members.some(
-            member => member.user.toString() === req.user._id.toString()
-        );
-
-        if (!isMember) {
+        if (!isProjectMember(project, req.user._id)) {
             return res.status(403).json({
                 success: false,
                 error: 'Not a project member'
@@ -260,18 +272,13 @@ const deleteTask = async (req, res) => {
 };
 
 // @desc    Move task (drag & drop)
-// @route   PUT /api/tasks/:id/move
+// @route   PATCH /api/tasks/:id/move
 // @access  Private (Project member)
-const moveTask = async (req, res) => {
+const moveTask = async (req, res, next) => {
     try {
         const { newStatus } = req.body;
 
-        if (!['todo', 'in_progress', 'done'].includes(newStatus)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid status'
-            });
-        }
+        // Note: Validation of newStatus is handled by express-validator in routes
 
         const task = await Task.findById(req.params.id);
 
@@ -279,6 +286,15 @@ const moveTask = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 error: 'Task not found'
+            });
+        }
+
+        // Validate project membership
+        const project = await Project.findById(task.project);
+        if (!isProjectMember(project, req.user._id)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not a project member'
             });
         }
 
@@ -332,5 +348,6 @@ module.exports = {
     createTask,
     updateTask,
     deleteTask,
-    moveTask
+    moveTask,
+    getTasksByProject
 };

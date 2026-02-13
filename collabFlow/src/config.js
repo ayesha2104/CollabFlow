@@ -11,7 +11,9 @@ const config = {
     SOCKET_URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000',
 
     // Feature flags
-    USE_MOCK_API: import.meta.env.VITE_USE_MOCK_API === 'true' || false,
+    // Feature flags
+    // Mock API usage removed
+
 
     // Environment
     ENV: import.meta.env.VITE_ENV || import.meta.env.MODE || 'development',

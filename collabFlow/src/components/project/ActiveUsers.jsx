@@ -12,7 +12,7 @@ const getAvatarColor = (name) => {
         'from-yellow-500 to-orange-500',
         'from-pink-500 to-rose-500'
     ];
-    
+
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return colors[index % colors.length];
 };
@@ -27,12 +27,8 @@ const getInitials = (name) => {
         .slice(0, 2);
 };
 
-// Mock active users for MVP
-const mockActiveUsers = [
-    { id: 1, name: 'Alice Smith', avatar: null, status: 'active' },
-    { id: 2, name: 'Bob Johnson', avatar: null, status: 'active' },
-    { id: 3, name: 'Charlie Brown', avatar: null, status: 'idle' }
-];
+// Mock active users removed
+
 
 const UserAvatar = ({ user, size = 'default', showStatus = true }) => {
     const sizeClasses = {
@@ -49,7 +45,7 @@ const UserAvatar = ({ user, size = 'default', showStatus = true }) => {
 
     return (
         <div className="relative group">
-            <div 
+            <div
                 className={`
                     ${sizeClasses[size]} 
                     rounded-full 
@@ -63,18 +59,18 @@ const UserAvatar = ({ user, size = 'default', showStatus = true }) => {
                 title={user.name}
             >
                 {user.avatar ? (
-                    <img 
-                        src={user.avatar} 
-                        alt={user.name} 
+                    <img
+                        src={user.avatar}
+                        alt={user.name}
                         className="w-full h-full rounded-full object-cover"
                     />
                 ) : (
                     getInitials(user.name)
                 )}
             </div>
-            
+
             {showStatus && (
-                <span 
+                <span
                     className={`
                         absolute bottom-0 right-0 
                         w-2.5 h-2.5 
@@ -84,7 +80,7 @@ const UserAvatar = ({ user, size = 'default', showStatus = true }) => {
                     `}
                 />
             )}
-            
+
             {/* Tooltip */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
                 {user.name}
@@ -98,10 +94,10 @@ const ActiveUsers = ({ projectId, maxDisplay = 3, onUserClick }) => {
     const [users, setUsers] = useState([]);
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Fetch active users (mock for MVP)
+    // Fetch active users
     useEffect(() => {
-        // In real implementation, this would come from socket context
-        setUsers(mockActiveUsers);
+        // Real implementation to be connected to socket context
+        setUsers([]);
     }, [projectId]);
 
     const displayedUsers = isExpanded ? users : users.slice(0, maxDisplay);
@@ -120,13 +116,13 @@ const ActiveUsers = ({ projectId, maxDisplay = 3, onUserClick }) => {
         <div className="flex items-center">
             <div className="flex -space-x-2">
                 {displayedUsers.map(user => (
-                    <UserAvatar 
-                        key={user.id} 
+                    <UserAvatar
+                        key={user.id}
                         user={user}
                         onClick={() => onUserClick && onUserClick(user)}
                     />
                 ))}
-                
+
                 {!isExpanded && remainingCount > 0 && (
                     <button
                         onClick={() => setIsExpanded(true)}
@@ -174,7 +170,7 @@ export const ActiveUsersCompact = ({ users = [], maxDisplay = 3 }) => {
                     {getInitials(user.name)}
                 </div>
             ))}
-            
+
             {remainingCount > 0 && (
                 <div className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-xs font-bold text-white">
                     +{remainingCount}
@@ -187,7 +183,7 @@ export const ActiveUsersCompact = ({ users = [], maxDisplay = 3 }) => {
 // User presence indicator for task cards
 export const UserPresenceIndicator = ({ user, isEditing = false }) => {
     if (!user) return null;
-    
+
     return (
         <div className={`
             flex items-center gap-1.5 px-2 py-1 rounded-full text-xs

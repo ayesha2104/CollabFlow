@@ -85,6 +85,21 @@ export const useProjects = () => {
         }
     }, [projects]);
 
+    // Update project columns
+    const updateProjectColumns = useCallback(async (id, columns) => {
+        try {
+            const response = await projectsAPI.updateColumns(id, columns);
+            const projectData = extractResponseData(response);
+            const updatedProject = transformProjectFromBackend(projectData);
+            setProjects(prev => prev.map(p => (p.id === parseInt(id) || p.id === id) ? updatedProject : p));
+            return updatedProject;
+        } catch (err) {
+            const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to update columns';
+            toast.error(errorMessage);
+            throw err;
+        }
+    }, [projects]);
+
     // Delete project
     const deleteProject = useCallback(async (id) => {
         try {
@@ -112,6 +127,7 @@ export const useProjects = () => {
         fetchProject,
         createProject,
         updateProject,
+        updateProjectColumns,
         deleteProject
     };
 };

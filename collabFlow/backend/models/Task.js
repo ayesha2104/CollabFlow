@@ -19,8 +19,11 @@ const taskSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: Object.values(TASK_STATUS),
         default: TASK_STATUS.TODO
+    },
+    order: {
+        type: Number,
+        default: 0
     },
     priority: {
         type: String,

@@ -75,13 +75,21 @@ const createTask = async (req, res, next) => {
             }
         }
 
+        const taskStatus = status || TASK_STATUS.TODO;
+
+        // Find highest order in the target column
+        const highestOrderTask = await Task.findOne({ project: projectId, status: taskStatus })
+            .sort('-order');
+        const nextOrder = highestOrderTask ? highestOrderTask.order + 1 : 0;
+
         // Create task
         const task = await Task.create({
             project: projectId,
             title,
             description,
-            status: status || TASK_STATUS.TODO,
+            status: taskStatus,
             priority: priority || PRIORITY_LEVELS.MEDIUM,
+            order: nextOrder,
             assignee,
             dueDate,
             createdBy: req.user._id
@@ -350,10 +358,68 @@ const moveTask = async (req, res, next) => {
     }
 };
 
+// @desc    Reorder tasks (drag & drop intra/inter-column)
+// @route   PATCH /api/projects/:projectId/tasks/reorder
+// @access  Private (Project member)
+const reorderTasks = async (req, res, next) => {
+    try {
+        const { items } = req.body; // Array of { id, status, order }
+        const projectId = req.params.projectId || req.params.id;
+
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Please provide items array for reordering'
+            });
+        }
+
+        const project = await Project.findById(projectId);
+        if (!project) {
+            return res.status(404).json({
+                success: false,
+                error: 'Project not found'
+            });
+        }
+
+        if (!isProjectMember(project, req.user._id)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not a project member'
+            });
+        }
+
+        // Bulk update tasks
+        const bulkOps = items.map(item => ({
+            updateOne: {
+                filter: { _id: item.id, project: projectId },
+                update: { status: item.status, order: item.order, updatedAt: Date.now() }
+            }
+        }));
+
+        if (bulkOps.length > 0) {
+            await Task.bulkWrite(bulkOps);
+        }
+
+        // Broadcast real-time update
+        req.io.to(projectId.toString()).emit('tasks:reordered', {
+            projectId,
+            items
+        });
+
+        res.status(200).json({
+            success: true,
+            count: items.length
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createTask,
     updateTask,
     deleteTask,
     moveTask,
-    getTasksByProject
+    getTasksByProject,
+    reorderTasks
 };

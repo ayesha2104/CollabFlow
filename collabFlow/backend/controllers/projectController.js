@@ -37,7 +37,12 @@ const createProject = async (req, res, next) => {
             name,
             description,
             owner: req.user._id,
-            members: [{ user: req.user._id, role: PROJECT_ROLES.OWNER }] // Ensure owner is added as member with owner role
+            members: [{ user: req.user._id, role: PROJECT_ROLES.OWNER }], // Ensure owner is added as member with owner role
+            columns: [
+                { id: 'col-1', title: 'To Do', order: 0 },
+                { id: 'col-2', title: 'In Progress', order: 1 },
+                { id: 'col-3', title: 'Done', order: 2 }
+            ]
         });
 
         // Log activity
@@ -425,6 +430,48 @@ const updateMemberRole = async (req, res, next) => {
     }
 };
 
+// @desc    Update project columns
+// @route   PUT /api/projects/:id/columns
+// @access  Private (Project owner or PM)
+const updateProjectColumns = async (req, res, next) => {
+    try {
+        const { columns } = req.body;
+
+        if (!columns || !Array.isArray(columns)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Please provide columns array'
+            });
+        }
+
+        const project = await Project.findById(req.params.id);
+
+        if (!project) {
+            return res.status(404).json({
+                success: false,
+                error: 'Project not found'
+            });
+        }
+
+        project.columns = columns;
+        await project.save();
+
+        if (req.io) {
+            req.io.to(project._id.toString()).emit('columns:updated', {
+                projectId: project._id,
+                columns: project.columns
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: project
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getProjects,
     createProject,
@@ -433,5 +480,6 @@ module.exports = {
     deleteProject,
     inviteMembers,
     removeMember,
-    updateMemberRole
+    updateMemberRole,
+    updateProjectColumns
 };

@@ -138,20 +138,33 @@ export const useTasks = (projectId) => {
         onTaskDeleted: handleExternalTaskDeleted
     });
 
-    // Initialize default board structure
-    const initializeBoard = useCallback(() => {
-        const defaultColumns = {
-            'col-1': { id: 'col-1', title: 'To Do', taskIds: [] },
-            'col-2': { id: 'col-2', title: 'In Progress', taskIds: [] },
-            'col-3': { id: 'col-3', title: 'Done', taskIds: [] }
-        };
+    // Initialize predefined or dynamic board structure
+    const initializeBoard = useCallback((projectColumns = []) => {
+        if (!projectColumns || projectColumns.length === 0) {
+            const defaultColumns = {
+                'col-1': { id: 'col-1', title: 'To Do', taskIds: [] },
+                'col-2': { id: 'col-2', title: 'In Progress', taskIds: [] },
+                'col-3': { id: 'col-3', title: 'Done', taskIds: [] }
+            };
+            setColumns(defaultColumns);
+            setColumnOrder(['col-1', 'col-2', 'col-3']);
+            return;
+        }
 
-        setColumns(defaultColumns);
-        setColumnOrder(['col-1', 'col-2', 'col-3']);
+        const cols = {};
+        const colOrder = [];
+
+        projectColumns.forEach(pc => {
+            cols[pc.id] = { id: pc.id, title: pc.title, taskIds: [] };
+            colOrder.push(pc.id);
+        });
+
+        setColumns(cols);
+        setColumnOrder(colOrder);
     }, []);
 
     // Fetch tasks for a project
-    const fetchTasks = useCallback(async (projectIdOverride) => {
+    const fetchTasks = useCallback(async (projectIdOverride, projectColumns = []) => {
         const id = projectIdOverride || projectId;
         if (!id) return;
 
@@ -161,39 +174,45 @@ export const useTasks = (projectId) => {
         try {
             // Real API call - fetch tasks directly
             const response = await tasksAPI.getByProject(id);
-            // extractResponseData returns res.data.data found in extractResponseData helper usually
             const tasksData = extractResponseData(response);
 
-            console.log('[useTasks] Fetched tasks data:', tasksData);
-
-            // tasksData should be an array of tasks based on getTasksByProject controller
-
             const tasksArray = Array.isArray(tasksData) ? tasksData : [];
+            // Sort tasks by order before distributing into columns
+            tasksArray.sort((a, b) => (a.order || 0) - (b.order || 0));
 
             const transformedTasks = {};
-            const col1Ids = [];
-            const col2Ids = [];
-            const col3Ids = [];
+            
+            // Re-initialize correct columns
+            let cols = {};
+            let colOrder = [];
+            if (projectColumns && projectColumns.length > 0) {
+                projectColumns.forEach(pc => {
+                    cols[pc.id] = { id: pc.id, title: pc.title, taskIds: [] };
+                    colOrder.push(pc.id);
+                });
+            } else {
+                cols = {
+                    'col-1': { id: 'col-1', title: 'To Do', taskIds: [] },
+                    'col-2': { id: 'col-2', title: 'In Progress', taskIds: [] },
+                    'col-3': { id: 'col-3', title: 'Done', taskIds: [] }
+                };
+                colOrder = ['col-1', 'col-2', 'col-3'];
+            }
 
             tasksArray.forEach(task => {
                 const transformed = transformTaskFromBackend(task);
                 transformedTasks[transformed.id] = transformed;
 
-                // Map status to columns
-                if (transformed.status === 'In Progress') col2Ids.push(transformed.id);
-                else if (transformed.status === 'Done') col3Ids.push(transformed.id);
-                else col1Ids.push(transformed.id);
+                // Find matching column by title or id
+                const colId = Object.keys(cols).find(cid => cols[cid].title === transformed.status || cid === transformed.status) || colOrder[0];
+                if (colId && cols[colId]) {
+                    cols[colId].taskIds.push(transformed.id);
+                }
             });
 
-            const defaultColumns = {
-                'col-1': { id: 'col-1', title: 'To Do', taskIds: col1Ids },
-                'col-2': { id: 'col-2', title: 'In Progress', taskIds: col2Ids },
-                'col-3': { id: 'col-3', title: 'Done', taskIds: col3Ids }
-            };
-
             setTasks(transformedTasks);
-            setColumns(defaultColumns);
-            setColumnOrder(['col-1', 'col-2', 'col-3']);
+            setColumns(cols);
+            setColumnOrder(colOrder);
 
         } catch (err) {
             const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to fetch tasks';
@@ -326,16 +345,20 @@ export const useTasks = (projectId) => {
                     ...columns,
                     [sourceColId]: { ...sourceColumn, taskIds: newTaskIds }
                 };
-
                 setColumns(newColumns);
-                // Note: Real API might not support same-column reorder yet if it relies solely on status
+
+                // Prepare reorder items
+                const status = destColumn.title;
+                const backendStatus = toBackendStatus(status);
+                const items = newTaskIds.map((id, index) => ({ id, status: backendStatus, order: index }));
+
+                // Call reorder API
+                await tasksAPI.reorder(projectId, items);
+
             } else {
-                // Moving between columns - update status via API
+                // Moving between columns
                 const frontendStatus = destColumn.title;
                 const backendStatus = toBackendStatus(frontendStatus);
-
-                // Real API call to update task status
-                await tasksAPI.move(taskId, backendStatus);
 
                 const sourceTaskIds = Array.from(sourceColumn.taskIds);
                 sourceTaskIds.splice(sourceIndex, 1);
@@ -343,7 +366,6 @@ export const useTasks = (projectId) => {
                 const destTaskIds = Array.from(destColumn.taskIds);
                 destTaskIds.splice(destIndex, 0, taskId);
 
-                // Update task status (keep frontend format)
                 const updatedTask = { ...tasks[taskId], status: frontendStatus };
                 const newTasks = { ...tasks, [taskId]: updatedTask };
 
@@ -356,15 +378,25 @@ export const useTasks = (projectId) => {
                 setTasks(newTasks);
                 setColumns(newColumns);
 
-                // Emit socket event (backend expects backend format)
-                emitTaskMoved(taskId, toBackendStatus(sourceColumn.title), toBackendStatus(destColumn.title), projectId);
+                // Prepare reorder items for both columns
+                const sourceBackendStatus = toBackendStatus(sourceColumn.title);
+                const sourceItems = sourceTaskIds.map((id, index) => ({ id, status: sourceBackendStatus, order: index }));
+                const destItems = destTaskIds.map((id, index) => ({ id, status: backendStatus, order: index }));
+                const items = [...sourceItems, ...destItems];
+
+                // Call reorder API
+                await tasksAPI.reorder(projectId, items);
+
+                // Emit socket event for compatibility or other clients (though reorder handles the DB updates)
+                emitTaskMoved(taskId, sourceBackendStatus, backendStatus, projectId);
             }
         } catch (err) {
             const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to move task';
             toast.error(errorMessage);
+            // On failure, we should ideally revert state
             throw err;
         }
-    }, [tasks, columns, projectId, saveTasks, emitTaskMoved]);
+    }, [tasks, columns, projectId, emitTaskMoved]);
 
     return {
         tasks,

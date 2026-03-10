@@ -3,6 +3,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import TaskColumn from '../components/project/TaskColumn';
 import Navbar from '../components/shared/Navbar';
 import TaskDetailModal from '../components/project/TaskDetailModal';
+import ProjectSettingsModal from '../components/project/ProjectSettingsModal';
 import ActivityFeed from '../components/project/ActivityFeed';
 import ActiveUsers from '../components/project/ActiveUsers';
 import { Settings, Filter, ArrowLeft, Plus, Activity } from 'lucide-react';
@@ -16,7 +17,7 @@ import { PageLoader } from '../components/shared/LoadingSpinner';
 const ProjectBoard = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { fetchProject } = useProjects();
+    const { fetchProject, updateProjectColumns, updateProject, deleteProject } = useProjects();
     const { connected } = useSocket();
     const {
         tasks,
@@ -33,6 +34,7 @@ const ProjectBoard = () => {
     const [project, setProject] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isLoadingProject, setIsLoadingProject] = useState(true);
     const [showActivityFeed, setShowActivityFeed] = useState(true);
 
@@ -47,7 +49,7 @@ const ProjectBoard = () => {
             try {
                 const projectData = await fetchProject(id);
                 setProject(projectData);
-                await fetchTasks(id);
+                await fetchTasks(id, projectData.columns);
             } catch (error) {
                 toast.error('Failed to load project');
                 navigate('/dashboard');
@@ -112,6 +114,33 @@ const ProjectBoard = () => {
         } catch (error) {
             // Error already handled
         }
+    };
+
+    const handleAddColumn = async () => {
+        const newColTitle = prompt('Enter column name:');
+        if (!newColTitle || !newColTitle.trim()) return;
+
+        const newColId = `col-${Date.now()}`;
+        const newColumn = { id: newColId, title: newColTitle.trim(), order: project.columns?.length || 0 };
+        const newColumns = [...(project.columns || []), newColumn];
+
+        try {
+            const updatedProject = await updateProjectColumns(id, newColumns);
+            setProject(updatedProject);
+            await fetchTasks(id, updatedProject.columns);
+        } catch (error) {
+            // Error already handled
+        }
+    };
+
+    const handleUpdateProject = async (updates) => {
+        const updatedProject = await updateProject(id, updates);
+        setProject(updatedProject);
+    };
+
+    const handleDeleteProject = async () => {
+        await deleteProject(id);
+        navigate('/dashboard');
     };
 
     // Filter Logic
@@ -197,7 +226,10 @@ const ProjectBoard = () => {
                         <Activity size={16} /> Activity
                     </button>
 
-                    <button className="flex items-center gap-1.5 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium">
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="flex items-center gap-1.5 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium"
+                    >
                         <Settings size={16} /> Settings
                     </button>
                 </div>
@@ -223,7 +255,10 @@ const ProjectBoard = () => {
                                 );
                             })}
 
-                            <button className="w-80 h-12 rounded-xl bg-slate-800/30 border border-dashed border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex-shrink-0">
+                            <button 
+                                onClick={handleAddColumn}
+                                className="w-80 h-12 rounded-xl bg-slate-800/30 border border-dashed border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex-shrink-0"
+                            >
                                 <Plus size={20} className="mr-2" /> Add Column
                             </button>
                         </div>
@@ -246,6 +281,14 @@ const ProjectBoard = () => {
                 task={selectedTask}
                 onSave={handleUpdateTask}
                 onDelete={handleDeleteTask}
+            />
+
+            <ProjectSettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                project={project}
+                onUpdateProject={handleUpdateProject}
+                onDeleteProject={handleDeleteProject}
             />
         </div>
     );

@@ -30,14 +30,14 @@ export const PRIORITY_MAP = {
  * Convert frontend status to backend format
  */
 export const toBackendStatus = (frontendStatus) => {
-    return STATUS_MAP[frontendStatus] || frontendStatus.toLowerCase().replace(' ', '_');
+    return STATUS_MAP[frontendStatus] || frontendStatus;
 };
 
 /**
  * Convert backend status to frontend display format
  */
 export const toFrontendStatus = (backendStatus) => {
-    return STATUS_MAP[backendStatus] || backendStatus.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+    return STATUS_MAP[backendStatus] || backendStatus;
 };
 
 /**
@@ -72,7 +72,8 @@ export const transformTaskToBackend = (frontendTask) => {
     const backendTask = {
         ...frontendTask,
         status: toBackendStatus(frontendTask.status || 'To Do'),
-        priority: toBackendPriority(frontendTask.priority || 'Medium')
+        priority: toBackendPriority(frontendTask.priority || 'Medium'),
+        order: frontendTask.order !== undefined ? frontendTask.order : 0
     };
 
     // Remove empty optional strings to avoid backend validation failures (e.g., empty dueDate)
@@ -99,6 +100,7 @@ export const transformProjectFromBackend = (backendProject) => {
             avatar: m.user?.avatar || m.avatar || null,
             role: m.role || 'member'
         })) || [],
+        columns: backendProject.columns?.sort((a, b) => a.order - b.order) || [],
         taskCount: backendProject.taskCount || 0,
         activeTaskCount: backendProject.activeTaskCount || 0,
         progress: backendProject.progress || 0,

@@ -12,6 +12,11 @@ const projectSchema = new mongoose.Schema({
         type: String,
         maxlength: [500, 'Description cannot be more than 500 characters']
     },
+    columns: [{
+        id: { type: String, required: true },
+        title: { type: String, required: true },
+        order: { type: Number, required: true }
+    }],
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

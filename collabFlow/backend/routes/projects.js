@@ -10,9 +10,10 @@ const {
     deleteProject,
     inviteMembers,
     removeMember,
-    updateMemberRole
+    updateMemberRole,
+    updateProjectColumns
 } = require('../controllers/projectController');
-const { getTasksByProject } = require('../controllers/taskController');
+const { getTasksByProject, reorderTasks } = require('../controllers/taskController');
 const { protect, isProjectMember, isProjectOwner, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validator');
 
@@ -57,7 +58,9 @@ router.post('/', createProjectValidation, validate, createProject);
 // Project-specific routes
 router.get('/:id', isProjectMember, getProject);
 router.get('/:id/tasks', isProjectMember, getTasksByProject); // New endpoint for tasks
+router.patch('/:id/tasks/reorder', isProjectMember, reorderTasks);
 router.put('/:id', isProjectOwner, createProjectValidation, validate, updateProject);
+router.put('/:id/columns', isProjectOwner, validate, updateProjectColumns);
 router.delete('/:id', isProjectOwner, deleteProject);
 
 // Member management routes

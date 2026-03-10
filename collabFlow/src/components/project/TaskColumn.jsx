@@ -2,6 +2,7 @@ import React from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import TaskCard from './TaskCard';
 import { Plus } from 'lucide-react';
+import { tasksAPI } from '../../services/api'; 
 
 const TaskColumn = ({ column, tasks, onAddTask, onTaskClick }) => {
     return (

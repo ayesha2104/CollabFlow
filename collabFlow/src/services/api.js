@@ -86,7 +86,8 @@ export const projectsAPI = {
     create: (data) => api.post('/projects', data),
     update: (id, data) => api.put(`/projects/${id}`, data),
     delete: (id) => api.delete(`/projects/${id}`),
-    inviteMembers: (id, emails) => api.post(`/projects/${id}/invite`, { emails })
+    inviteMembers: (id, emails) => api.post(`/projects/${id}/invite`, { emails }),
+    updateColumns: (id, columns) => api.put(`/projects/${id}/columns`, { columns })
 };
 
 // Tasks endpoints
@@ -97,7 +98,9 @@ export const tasksAPI = {
     update: (id, data) => api.put(`/tasks/${id}`, data),
     delete: (id) => api.delete(`/tasks/${id}`),
     move: (id, newStatus) =>
-        api.patch(`/tasks/${id}/move`, { newStatus })
+        api.patch(`/tasks/${id}/move`, { newStatus }),
+    reorder: (projectId, items) => 
+        api.patch(`/projects/${projectId}/tasks/reorder`, { items })
 };
 
 // Activities endpoints

@@ -33,7 +33,7 @@ module.exports = (io) => {
         logger.info(`User connected: ${socket.userId} (${socket.user.name})`);
 
         // Join project room
-        socket.on('project:join', async (projectId) => {
+        socket.on('project:join', async ({ projectId }) => {
             try {
                 // Validate project membership
                 const project = await Project.findById(projectId);
@@ -86,7 +86,7 @@ module.exports = (io) => {
         });
 
         // Leave project room
-        socket.on('project:leave', (projectId) => {
+        socket.on('project:leave', ({ projectId }) => {
             socket.leave(projectId);
             socket.to(projectId).emit('user:left', {
                 userId: socket.userId
@@ -110,9 +110,15 @@ module.exports = (io) => {
                     return;
                 }
 
+                // Fetch the task to get current status as oldStatus
+                const Task = require('../models/Task');
+                const task = await Task.findById(taskId);
+                const oldStatus = task ? task.status : undefined;
+
                 // Broadcast to room (except sender)
                 socket.to(projectId).emit('task:moved', {
                     taskId,
+                    oldStatus,
                     newStatus,
                     movedBy: socket.userId
                 });

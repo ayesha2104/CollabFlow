@@ -138,7 +138,8 @@ const ActivityItem = ({ activity }) => {
 const ActivityFeed = ({ projectId, isOpen = true, onToggle }) => {
     const [activities, setActivities] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [hasMore, setHasMore] = useState(true);
+    const [hasMore, setHasMore] = useState(false);
+    const [skip, setSkip] = useState(0);
 
     // Fetch activities
     useEffect(() => {
@@ -148,9 +149,11 @@ const ActivityFeed = ({ projectId, isOpen = true, onToggle }) => {
             try {
                 // Real API call
                 const { activitiesAPI } = await import('../../services/api');
-                const response = await activitiesAPI.getByProject(projectId, { limit: 20 });
+                const response = await activitiesAPI.getByProject(projectId, { limit: 20, skip: 0 });
                 const activitiesData = response.data.activities || response.data.data || [];
                 setActivities(activitiesData);
+                setHasMore(response.data.pagination?.hasMore || false);
+                setSkip(20);
             } catch (error) {
                 console.error('Failed to fetch activities:', error);
                 setActivities([]);
@@ -174,8 +177,17 @@ const ActivityFeed = ({ projectId, isOpen = true, onToggle }) => {
     useActivityEvents(addActivity);
 
     const loadMore = async () => {
-        // Load more implementation to be added
-        setHasMore(false);
+        try {
+            const { activitiesAPI } = await import('../../services/api');
+            const response = await activitiesAPI.getByProject(projectId, { limit: 20, skip });
+            const activitiesData = response.data.activities || response.data.data || [];
+            
+            setActivities(prev => [...prev, ...activitiesData]);
+            setHasMore(response.data.pagination?.hasMore || false);
+            setSkip(prev => prev + 20);
+        } catch (error) {
+            console.error('Failed to load more activities:', error);
+        }
     };
 
     if (!isOpen) return null;

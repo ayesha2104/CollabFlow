@@ -252,8 +252,8 @@ export const useTasks = (projectId) => {
 
             // Real API call
             const response = await tasksAPI.create(backendTaskData);
-            const taskData = extractResponseData(response);
-            const newTask = transformTaskFromBackend(taskData);
+            const responseData = extractResponseData(response);
+            const newTask = transformTaskFromBackend(responseData);
 
             const newTasks = { ...tasks, [newTask.id]: newTask };
             const newColumns = {
@@ -398,6 +398,79 @@ export const useTasks = (projectId) => {
         }
     }, [tasks, columns, projectId, emitTaskMoved]);
 
+    // Add Comment
+    const addComment = useCallback(async (taskId, text) => {
+        try {
+            const response = await tasksAPI.addComment(taskId, text);
+            // Handling varied backend response structure based on extractResponseData
+            const responseData = response.data?.data || response.data || {};
+            const comment = Array.isArray(responseData) ? responseData[0] : responseData;
+            
+            setTasks(prev => {
+                const task = prev[taskId];
+                if (!task) return prev;
+                return {
+                    ...prev,
+                    [taskId]: {
+                        ...task,
+                        comments: [...(task.comments || []), comment]
+                    }
+                };
+            });
+            return comment;
+        } catch (err) {
+            toast.error('Failed to add comment');
+            throw err;
+        }
+    }, []);
+
+    // Remove Comment
+    const removeComment = useCallback(async (taskId, commentId) => {
+        try {
+            await tasksAPI.removeComment(taskId, commentId);
+            
+            setTasks(prev => {
+                const task = prev[taskId];
+                if (!task) return prev;
+                return {
+                    ...prev,
+                    [taskId]: {
+                        ...task,
+                        comments: (task.comments || []).filter(c => c._id !== commentId && c.id !== commentId)
+                    }
+                };
+            });
+        } catch (err) {
+            toast.error('Failed to remove comment');
+            throw err;
+        }
+    }, []);
+
+    // Add Attachment
+    const addAttachment = useCallback(async (taskId, attachmentData) => {
+        try {
+            const response = await tasksAPI.addAttachment(taskId, attachmentData);
+            const responseData = response.data?.data || response.data || {};
+            const attachment = Array.isArray(responseData) ? responseData[0] : responseData;
+            
+            setTasks(prev => {
+                const task = prev[taskId];
+                if (!task) return prev;
+                return {
+                    ...prev,
+                    [taskId]: {
+                        ...task,
+                        attachments: [...(task.attachments || []), attachment]
+                    }
+                };
+            });
+            return attachment;
+        } catch (err) {
+            toast.error('Failed to add attachment');
+            throw err;
+        }
+    }, []);
+
     return {
         tasks,
         columns,
@@ -408,7 +481,11 @@ export const useTasks = (projectId) => {
         createTask,
         updateTask,
         deleteTask,
-        moveTask
+        moveTask,
+        setColumnOrder,
+        addComment,
+        removeComment,
+        addAttachment
     };
 };
 

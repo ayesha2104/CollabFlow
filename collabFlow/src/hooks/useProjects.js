@@ -100,6 +100,22 @@ export const useProjects = () => {
         }
     }, [projects]);
 
+    // Invite members
+    const inviteMembers = useCallback(async (id, emails) => {
+        try {
+            const response = await projectsAPI.inviteMembers(id, emails);
+            const projectData = extractResponseData(response);
+            const updatedProject = transformProjectFromBackend(projectData.project || projectData);
+            setProjects(prev => prev.map(p => (p.id === parseInt(id) || p.id === id) ? updatedProject : p));
+            toast.success('Members invited successfully!');
+            return updatedProject;
+        } catch (err) {
+            const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to invite members';
+            toast.error(errorMessage);
+            throw err;
+        }
+    }, [projects]);
+
     // Delete project
     const deleteProject = useCallback(async (id) => {
         try {
@@ -128,6 +144,7 @@ export const useProjects = () => {
         createProject,
         updateProject,
         updateProjectColumns,
+        inviteMembers,
         deleteProject
     };
 };

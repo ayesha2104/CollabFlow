@@ -1,7 +1,9 @@
+const logger = require('../utils/logger');
 const Task = require('../models/Task');
 const Activity = require('../models/Activity');
 const Project = require('../models/Project');
 const { TASK_STATUS, PRIORITY_LEVELS } = require('../config/constants');
+const sendEmail = require('../utils/sendEmail');
 
 // Helper to check project membership
 const isProjectMember = (project, userId) => {
@@ -13,7 +15,7 @@ const isProjectMember = (project, userId) => {
 // @access  Private (Project member)
 const getTasksByProject = async (req, res, next) => {
     try {
-        console.log(`[getTasksByProject] Fetching tasks for project: ${req.params.projectId} or ${req.params.id}`);
+        logger.info(`[getTasksByProject] Fetching tasks for project: ${req.params.projectId} or ${req.params.id}`);
         // req.project is set by isProjectMember middleware
         // Route parameter might be :id or :projectId depending on where it's mounted
         const projectId = req.params.projectId || req.params.id;
@@ -23,7 +25,7 @@ const getTasksByProject = async (req, res, next) => {
             .populate('createdBy', 'name email avatar')
             .sort({ createdAt: -1 });
 
-        console.log(`[getTasksByProject] Found ${tasks.length} tasks`);
+        logger.info(`[getTasksByProject] Found ${tasks.length} tasks`);
 
         res.status(200).json({
             success: true,
@@ -31,7 +33,7 @@ const getTasksByProject = async (req, res, next) => {
             data: tasks
         });
     } catch (error) {
-        console.error('[getTasksByProject] Error:', error);
+        logger.error('[getTasksByProject] Error:', error);
         next(error);
     }
 };
@@ -41,7 +43,7 @@ const getTasksByProject = async (req, res, next) => {
 // @access  Private (Project member)
 const createTask = async (req, res, next) => {
     try {
-        console.log('[createTask] Request body:', req.body);
+        logger.info('[createTask] Request body:', req.body);
         const {
             projectId,
             title,
@@ -95,7 +97,7 @@ const createTask = async (req, res, next) => {
             createdBy: req.user._id
         });
 
-        console.log('[createTask] Task created:', task._id);
+        logger.info('[createTask] Task created:', task._id);
 
         // Populate task with user info
         const populatedTask = await Task.findById(task._id)
@@ -114,6 +116,21 @@ const createTask = async (req, res, next) => {
             }
         });
 
+        // Send email notification to assignee
+        if (populatedTask.assignee && populatedTask.assignee._id.toString() !== req.user._id.toString()) {
+            sendEmail({
+                email: populatedTask.assignee.email,
+                subject: `New Task Assigned: ${populatedTask.title}`,
+                html: `
+                    <h2>New Task Assignment</h2>
+                    <p>You have been assigned to a new task: <strong>${populatedTask.title}</strong></p>
+                    <p>Project: ${populatedTask.project.name}</p>
+                    <p>Assigned by: ${populatedTask.createdBy.name}</p>
+                    <p>Please log in to CollabFlow to view more details.</p>
+                `
+            }).catch(err => console.error('Failed to send task assignment email:', err));
+        }
+
         // Broadcast real-time update
         req.io.to(projectId.toString()).emit('task:created', {
             task: populatedTask
@@ -129,7 +146,7 @@ const createTask = async (req, res, next) => {
             data: populatedTask
         });
     } catch (error) {
-        console.error('[createTask] Error:', error);
+        logger.error('[createTask] Error:', error);
         next(error);
     }
 };
@@ -184,8 +201,13 @@ const updateTask = async (req, res, next) => {
             }
         });
 
-        // Update task
-        Object.assign(task, req.body);
+        // Update task with whitelisted fields
+        const allowedFields = ['title', 'description', 'status', 'priority', 'order', 'assignee', 'dueDate'];
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                task[field] = req.body[field];
+            }
+        });
         task.updatedAt = Date.now();
         await task.save();
 
@@ -415,11 +437,142 @@ const reorderTasks = async (req, res, next) => {
     }
 };
 
+// @desc    Add a comment to a task
+// @route   POST /api/tasks/:id/comments
+// @access  Private (Project member)
+const addComment = async (req, res, next) => {
+    try {
+        const { text } = req.body;
+        
+        if (!text || !text.trim()) {
+            return res.status(400).json({ success: false, error: 'Comment text is required' });
+        }
+
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            return res.status(404).json({ success: false, error: 'Task not found' });
+        }
+
+        // Add comment
+        const newComment = {
+            user: req.user._id,
+            text: text.trim(),
+            createdAt: Date.now()
+        };
+
+        task.comments.push(newComment);
+        await task.save();
+
+        // Populate user details for returning
+        await task.populate('comments.user', 'name avatar email');
+
+        // Broadcast to project
+        if (req.io) {
+            req.io.to(task.project.toString()).emit('task:comment_added', {
+                taskId: task._id,
+                projectId: task.project,
+                comment: task.comments[task.comments.length - 1]
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            data: task.comments[task.comments.length - 1]
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Remove a comment from a task
+// @route   DELETE /api/tasks/:id/comments/:commentId
+// @access  Private (Comment owner, PM, Admin)
+const removeComment = async (req, res, next) => {
+    try {
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            return res.status(404).json({ success: false, error: 'Task not found' });
+        }
+
+        const commentIndex = task.comments.findIndex(c => c._id.toString() === req.params.commentId);
+        if (commentIndex === -1) {
+            return res.status(404).json({ success: false, error: 'Comment not found' });
+        }
+
+        const comment = task.comments[commentIndex];
+        
+        // Check authorization
+        const isOwner = comment.user.toString() === req.user._id.toString();
+        const isPMOrAdmin = req.user.role === 'pm' || req.user.role === 'admin';
+        
+        if (!isOwner && !isPMOrAdmin) {
+            return res.status(403).json({ success: false, error: 'Not authorized to delete this comment' });
+        }
+
+        task.comments.splice(commentIndex, 1);
+        await task.save();
+
+        if (req.io) {
+            req.io.to(task.project.toString()).emit('task:comment_removed', {
+                taskId: task._id,
+                projectId: task.project,
+                commentId: req.params.commentId
+            });
+        }
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Add an attachment to a task
+// @route   POST /api/tasks/:id/attachments
+// @access  Private (Project member)
+const addAttachment = async (req, res, next) => {
+    try {
+        const { name, url, type, size } = req.body;
+        
+        if (!name || !url) {
+            return res.status(400).json({ success: false, error: 'Attachment name and url are required' });
+        }
+
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            return res.status(404).json({ success: false, error: 'Task not found' });
+        }
+
+        const newAttachment = {
+            name,
+            url,
+            type,
+            size,
+            uploadedBy: req.user._id,
+            uploadedAt: Date.now()
+        };
+
+        task.attachments.push(newAttachment);
+        await task.save();
+
+        await task.populate('attachments.uploadedBy', 'name avatar email');
+
+        res.status(201).json({
+            success: true,
+            data: task.attachments[task.attachments.length - 1]
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createTask,
     updateTask,
     deleteTask,
     moveTask,
     getTasksByProject,
-    reorderTasks
+    reorderTasks,
+    addComment,
+    removeComment,
+    addAttachment
 };

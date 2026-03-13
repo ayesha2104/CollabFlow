@@ -3,8 +3,10 @@ import { X, Calendar, User, Flag, Trash2, Save, Clock, Circle } from 'lucide-rea
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
 
-const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
+const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave, onAddComment, onRemoveComment, onAddAttachment }) => {
     const { user } = useAuth();
+    const [newComment, setNewComment] = useState('');
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -48,6 +50,20 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
             onDelete && onDelete(task.id);
             toast.info('Task deleted');
             onClose();
+        }
+    };
+
+    const handleAddComment = async (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!newComment.trim() || !onAddComment) return;
+            try {
+                setIsSubmittingComment(true);
+                await onAddComment(task.id, newComment);
+                setNewComment('');
+            } finally {
+                setIsSubmittingComment(false);
+            }
         }
     };
 
@@ -126,18 +142,106 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
                                 </div>
                             </div>
 
+                            {/* Attachments Section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Attachments</label>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            const url = prompt('Enter attachment URL (e.g., Google Drive link, Figma):');
+                                            if (!url) return;
+                                            const name = prompt('Enter attachment name:');
+                                            if (url && name && onAddAttachment) {
+                                                onAddAttachment(task.id, { url, name, type: 'link', size: 0 });
+                                            }
+                                        }}
+                                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition-colors"
+                                    >
+                                        <Circle className="w-3 h-3" /> Add Link
+                                    </button>
+                                </div>
+                                {task?.attachments?.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                        {task.attachments.map(att => (
+                                            <a 
+                                                key={att._id} 
+                                                href={att.url} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="flex items-center gap-3 p-3 bg-slate-800/50 border border-slate-700 rounded-lg hover:border-blue-500 hover:bg-slate-800 transition-all group"
+                                            >
+                                                <div className="w-10 h-10 flex items-center justify-center bg-slate-900 rounded shadow-inner text-slate-400 group-hover:text-blue-400 transition-colors">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-slate-200 truncate">{att.name}</p>
+                                                    <p className="text-xs text-slate-500 truncate">{att.url}</p>
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-slate-500 italic py-4 text-center border border-dashed border-slate-700/50 rounded-lg bg-slate-800/20">No attachments added.</div>
+                                )}
+                            </div>
+
                             {/* Activity Section */}
                             <div>
                                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Activity</label>
-                                <div className="flex items-center gap-3 p-3 bg-slate-900/30 border border-slate-700 rounded-lg">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-xs text-white font-medium">
+                                
+                                {/* Existing Comments List */}
+                                <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                    {(task?.comments || []).map(comment => (
+                                        <div key={comment._id} className="flex gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-xs font-medium text-white overflow-hidden">
+                                                {comment.user?.avatar ? <img src={comment.user.avatar} alt="Avatar" className="w-full h-full object-cover" /> : (comment.user?.name?.charAt(0) || 'U')}
+                                            </div>
+                                            <div className="flex-1 bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <span className="text-sm font-medium text-slate-300">{comment.user?.name || 'User'}</span>
+                                                    <div className="flex items-center gap-2 text-slate-500 group-hover:text-slate-400">
+                                                        <span className="text-xs">{new Date(comment.createdAt).toLocaleDateString()} {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        {(user?.id === comment.user?._id || user?.id === comment.user?.id || user?.role === 'pm' || user?.role === 'admin') && (
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    onRemoveComment && onRemoveComment(task.id, comment._id);
+                                                                }}
+                                                                className="text-slate-500 hover:text-red-400 p-0.5 rounded transition-colors"
+                                                                title="Delete comment"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm text-slate-400 whitespace-pre-wrap">{comment.text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!task?.comments || task.comments.length === 0) && (
+                                        <div className="text-sm text-slate-500 italic py-2 text-center border border-dashed border-slate-700 rounded-lg">No comments yet.</div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-start gap-3 p-3 bg-slate-900/30 border border-slate-700 rounded-lg">
+                                    <div className="w-8 h-8 mt-1 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex-shrink-0 flex items-center justify-center text-xs text-white font-medium">
                                         {user?.name?.charAt(0) || 'U'}
                                     </div>
-                                    <input
-                                        type="text"
-                                        className="flex-1 bg-transparent border-none outline-none text-slate-300 placeholder-slate-500"
-                                        placeholder="Write a comment..."
-                                    />
+                                    <div className="flex-1 relative">
+                                        <textarea
+                                            className="w-full bg-transparent border-none outline-none text-slate-300 placeholder-slate-500 resize-none min-h-[40px] p-2 focus:ring-0 text-sm"
+                                            placeholder="Write a comment... (Press Enter to post)"
+                                            value={newComment}
+                                            onChange={(e) => setNewComment(e.target.value)}
+                                            onKeyDown={handleAddComment}
+                                            disabled={isSubmittingComment}
+                                            rows={2}
+                                        />
+                                        {isSubmittingComment && <div className="absolute top-2 right-2 w-4 h-4 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -157,10 +261,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
                                             value={formData.assignee}
                                             onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
                                         >
-                                            <option value="">Unassigned</option>
-                                            <option value="Alex Rivera">Alex Rivera</option>
-                                            <option value="Sarah Chen">Sarah Chen</option>
-                                            <option value="Bob Johnson">Bob Johnson</option>
+
                                         </select>
                                     </div>
                                 </div>
@@ -189,9 +290,9 @@ const TaskDetailModal = ({ isOpen, onClose, task, onDelete, onSave }) => {
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, priority: priority === 'Med' ? 'Medium' : priority })}
                                                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${formData.priority.toLowerCase() === priority.toLowerCase() ||
-                                                        (priority === 'Med' && formData.priority === 'Medium')
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                    (priority === 'Med' && formData.priority === 'Medium')
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                                     }`}
                                             >
                                                 {priority}

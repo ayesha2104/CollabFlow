@@ -28,7 +28,7 @@ const signupValidation = [
         .trim()
         .notEmpty()
         .withMessage('Role is required')
-        .isIn(['admin', 'PM', 'member', 'client'])
+        .isIn(['admin', 'pm', 'member', 'client'])
         .withMessage('Invalid role'),
 ];
 

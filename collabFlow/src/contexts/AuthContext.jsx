@@ -90,20 +90,12 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    const logout = useCallback(async () => {
-        try {
-            // Call logout endpoint if using real API
-            await authAPI.logout();
-        } catch (error) {
-            console.error('Logout error:', error);
-            // Continue with local logout even if API call fails
-        } finally {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            delete api.defaults.headers.common['Authorization'];
-            setToken(null);
-            setUser(null);
-        }
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        delete api.defaults.headers.common['Authorization'];
+        setToken(null);
+        setUser(null);
     }, []);
 
     const updateUser = useCallback((updates) => {

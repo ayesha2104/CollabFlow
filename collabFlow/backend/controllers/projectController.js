@@ -3,6 +3,7 @@ const Task = require('../models/Task');
 const Activity = require('../models/Activity');
 const User = require('../models/User');
 const { PROJECT_ROLES } = require('../config/constants');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Get all projects for user
 // @route   GET /api/projects
@@ -247,6 +248,17 @@ const inviteMembers = async (req, res, next) => {
                     invitedUserEmail: user.email
                 }
             });
+
+            // Send email notification (non-blocking)
+            sendEmail({
+                email: user.email,
+                subject: `You've been invited to ${project.name}`,
+                html: `
+                    <h2>Welcome to ${project.name}!</h2>
+                    <p>You have been invited to collaborate on <strong>${project.name}</strong> on CollabFlow.</p>
+                    <p>Log in to view the project details.</p>
+                `
+            }).catch(err => console.error('Failed to send invite email:', err));
         }
 
         // Populate members
@@ -472,6 +484,53 @@ const updateProjectColumns = async (req, res, next) => {
     }
 };
 
+// @desc    Get project analytics
+// @route   GET /api/projects/:id/analytics
+// @access  Private (Project member)
+const getProjectAnalytics = async (req, res, next) => {
+    try {
+        const project = await Project.findById(req.params.id);
+        if (!project) {
+            return res.status(404).json({ success: false, error: 'Project not found' });
+        }
+        
+        const tasks = await Task.find({ project: req.params.id });
+        const activities = await Activity.find({ project: req.params.id })
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+        // Compute analytics
+        const totalTasks = tasks.length;
+        const taskCounts = { todo: 0, inProgress: 0, done: 0 };
+        const priorityCounts = { low: 0, medium: 0, high: 0 };
+
+        tasks.forEach(task => {
+            if (task.status === 'to_do' || task.status === 'To Do') taskCounts.todo++;
+            else if (task.status === 'in_progress' || task.status === 'In Progress') taskCounts.inProgress++;
+            else if (task.status === 'done' || task.status === 'Done') taskCounts.done++;
+
+            if (task.priority === 'low' || task.priority === 'Low') priorityCounts.low++;
+            else if (task.priority === 'medium' || task.priority === 'Medium') priorityCounts.medium++;
+            else if (task.priority === 'high' || task.priority === 'High') priorityCounts.high++;
+        });
+
+        const completionRate = totalTasks === 0 ? 0 : Math.round((taskCounts.done / totalTasks) * 100);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                totalTasks,
+                taskCounts,
+                priorityCounts,
+                completionRate,
+                recentActivities: activities.length
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getProjects,
     createProject,
@@ -481,5 +540,6 @@ module.exports = {
     inviteMembers,
     removeMember,
     updateMemberRole,
-    updateProjectColumns
+    updateProjectColumns,
+    getProjectAnalytics
 };

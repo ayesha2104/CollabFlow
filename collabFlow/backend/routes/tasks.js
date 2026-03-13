@@ -7,7 +7,11 @@ const {
     updateTask,
     deleteTask,
     moveTask,
-    getTasksByProject
+    getTasksByProject,
+    reorderTasks,
+    addComment,
+    removeComment,
+    addAttachment
 } = require('../controllers/taskController');
 // const { protect } = require('../middleware/auth');
 const validate = require('../middleware/validator');
@@ -85,7 +89,15 @@ router.use(protect);
 // Task routes - IMPORTANT: Define specific routes before parameterized routes
 router.post('/', createTaskValidation, validate, createTask);
 router.patch('/:id/move', moveTaskValidation, validate, moveTask);
+router.post('/:id/comments', [
+    body('text').trim().notEmpty().withMessage('Comment text is required')
+], validate, addComment);
+router.delete('/:id/comments/:commentId', removeComment);
+router.post('/:id/attachments', [
+    body('name').notEmpty().withMessage('Attachment name is required'),
+    body('url').isURL().withMessage('Valid URL is required')
+], validate, addAttachment);
 router.put('/:id', updateTaskValidation, validate, updateTask);
-router.delete('/:id', protect, authorize('admin', 'PM'), deleteTask);
+router.delete('/:id', protect, authorize('admin', 'pm'), deleteTask);
 
 module.exports = router;

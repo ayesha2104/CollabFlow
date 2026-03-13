@@ -166,7 +166,7 @@ const isAdmin = (req, res, next) => {
 };
 
 const isPM = (req, res, next) => {
-    if (!['admin', 'PM'].includes(req.user.role)) {
+    if (!['admin', 'pm'].includes(req.user.role)) {
         return res.status(403).json({
             success: false,
             error: 'Access denied. Project Manager or Admin only'

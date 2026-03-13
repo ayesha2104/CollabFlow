@@ -11,7 +11,8 @@ const {
     inviteMembers,
     removeMember,
     updateMemberRole,
-    updateProjectColumns
+    updateProjectColumns,
+    getProjectAnalytics
 } = require('../controllers/projectController');
 const { getTasksByProject, reorderTasks } = require('../controllers/taskController');
 const { protect, isProjectMember, isProjectOwner, authorize } = require('../middleware/auth');
@@ -61,6 +62,7 @@ router.get('/:id/tasks', isProjectMember, getTasksByProject); // New endpoint fo
 router.patch('/:id/tasks/reorder', isProjectMember, reorderTasks);
 router.put('/:id', isProjectOwner, createProjectValidation, validate, updateProject);
 router.put('/:id/columns', isProjectOwner, validate, updateProjectColumns);
+router.get('/:id/analytics', isProjectMember, getProjectAnalytics);
 router.delete('/:id', isProjectOwner, deleteProject);
 
 // Member management routes

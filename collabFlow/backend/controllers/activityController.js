@@ -3,7 +3,7 @@ const Activity = require('../models/Activity');
 // @desc    Get project activity feed
 // @route   GET /api/activities/project/:projectId
 // @access  Private (Project member)
-const getProjectActivities = async (req, res) => {
+const getProjectActivities = async (req, res, next) => {
     try {
         const { limit = 20, skip = 0 } = req.query;
 

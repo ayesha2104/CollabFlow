@@ -4,7 +4,7 @@ const generateToken = require('../utils/generateToken');
 // @desc    Register user
 // @route   POST /api/auth/signup
 // @access  Public
-const signup = async (req, res) => {
+const signup = async (req, res, next) => {
     try {
         const { name, email, password } = req.body;
 
@@ -46,7 +46,7 @@ const signup = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-const login = async (req, res) => {
+const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
@@ -92,7 +92,7 @@ const login = async (req, res) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-const getMe = async (req, res) => {
+const getMe = async (req, res, next) => {
     try {
         res.status(200).json({
             success: true,

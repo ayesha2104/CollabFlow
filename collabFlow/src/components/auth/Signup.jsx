@@ -189,7 +189,7 @@ const Signup = () => {
                             <option value="">Select Role</option>
                             <option value="admin">Admin</option>
                             <option value="member">Team Member</option>
-                            <option value="PM">Project Manager</option>
+                            <option value="pm">Project Manager</option>
                             <option value="client">Client</option>
                         </select>
                         {errors.role && <p className="form-error">{errors.role}</p>}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import TaskColumn from '../components/project/TaskColumn';
 import Navbar from '../components/shared/Navbar';
 import TaskDetailModal from '../components/project/TaskDetailModal';
 import ProjectSettingsModal from '../components/project/ProjectSettingsModal';
+import ProjectAnalyticsModal from '../components/project/ProjectAnalyticsModal';
 import ActivityFeed from '../components/project/ActivityFeed';
 import ActiveUsers from '../components/project/ActiveUsers';
-import { Settings, Filter, ArrowLeft, Plus, Activity } from 'lucide-react';
+import { Settings, Filter, ArrowLeft, Plus, Activity, BarChart2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import { useProjects } from '../hooks/useProjects';
@@ -28,13 +29,18 @@ const ProjectBoard = () => {
         createTask,
         updateTask,
         deleteTask,
-        moveTask
+        moveTask,
+        setColumnOrder,
+        addComment,
+        removeComment,
+        addAttachment
     } = useTasks(id);
 
     const [project, setProject] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
     const [isLoadingProject, setIsLoadingProject] = useState(true);
     const [showActivityFeed, setShowActivityFeed] = useState(true);
 
@@ -63,7 +69,7 @@ const ProjectBoard = () => {
 
     // Drag and drop handler
     const onDragEnd = async (result) => {
-        const { destination, source, draggableId } = result;
+        const { destination, source, draggableId, type } = result;
 
         if (!destination) return;
 
@@ -71,6 +77,30 @@ const ProjectBoard = () => {
             destination.droppableId === source.droppableId &&
             destination.index === source.index
         ) {
+            return;
+        }
+
+        if (type === 'column') {
+            const newColumnOrder = Array.from(columnOrder);
+            newColumnOrder.splice(source.index, 1);
+            newColumnOrder.splice(destination.index, 0, draggableId);
+            
+            setColumnOrder(newColumnOrder); // Optimistic UI update
+            
+            const newBackendColumns = newColumnOrder.map((colId, index) => {
+                const col = columns[colId];
+                return {
+                    id: col.id,
+                    title: col.title,
+                    order: index
+                };
+            });
+
+            try {
+                await updateProjectColumns(id, newBackendColumns);
+            } catch (error) {
+                // Revert or error handle
+            }
             return;
         }
 
@@ -227,6 +257,13 @@ const ProjectBoard = () => {
                     </button>
 
                     <button
+                        onClick={() => setIsAnalyticsOpen(true)}
+                        className="flex items-center gap-1.5 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium"
+                    >
+                        <BarChart2 size={16} /> Analytics
+                    </button>
+
+                    <button
                         onClick={() => setIsSettingsOpen(true)}
                         className="flex items-center gap-1.5 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium"
                     >
@@ -240,28 +277,38 @@ const ProjectBoard = () => {
                 {/* Board Canvas */}
                 <div className="flex-1 overflow-x-auto overflow-y-hidden">
                     <DragDropContext onDragEnd={onDragEnd}>
-                        <div className="h-full flex p-6 gap-6 min-w-max">
-                            {columnOrder.map((columnId) => {
-                                const column = columns[columnId];
-                                const filteredTasks = getFilteredTasks(column.taskIds);
-                                return (
-                                    <TaskColumn
-                                        key={column.id}
-                                        column={column}
-                                        tasks={filteredTasks}
-                                        onAddTask={handleAddTask}
-                                        onTaskClick={handleTaskClick}
-                                    />
-                                );
-                            })}
+                        <Droppable droppableId="board" direction="horizontal" type="column">
+                            {(provided) => (
+                                <div
+                                    className="h-full flex p-6 gap-6 min-w-max"
+                                    ref={provided.innerRef}
+                                    {...provided.droppableProps}
+                                >
+                                    {columnOrder.map((columnId, index) => {
+                                        const column = columns[columnId];
+                                        const filteredTasks = getFilteredTasks(column.taskIds);
+                                        return (
+                                            <TaskColumn
+                                                key={column.id}
+                                                column={column}
+                                                tasks={filteredTasks}
+                                                index={index}
+                                                onAddTask={handleAddTask}
+                                                onTaskClick={handleTaskClick}
+                                            />
+                                        );
+                                    })}
+                                    {provided.placeholder}
 
-                            <button 
-                                onClick={handleAddColumn}
-                                className="w-80 h-12 rounded-xl bg-slate-800/30 border border-dashed border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex-shrink-0"
-                            >
-                                <Plus size={20} className="mr-2" /> Add Column
-                            </button>
-                        </div>
+                                    <button 
+                                        onClick={handleAddColumn}
+                                        className="w-80 h-12 rounded-xl bg-slate-800/30 border border-dashed border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex-shrink-0"
+                                    >
+                                        <Plus size={20} className="mr-2" /> Add Column
+                                    </button>
+                                </div>
+                            )}
+                        </Droppable>
                     </DragDropContext>
                 </div>
 
@@ -278,9 +325,12 @@ const ProjectBoard = () => {
             <TaskDetailModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                task={selectedTask}
+                task={selectedTask ? tasks[selectedTask.id] : null}
                 onSave={handleUpdateTask}
                 onDelete={handleDeleteTask}
+                onAddComment={addComment}
+                onRemoveComment={removeComment}
+                onAddAttachment={addAttachment}
             />
 
             <ProjectSettingsModal
@@ -289,6 +339,12 @@ const ProjectBoard = () => {
                 project={project}
                 onUpdateProject={handleUpdateProject}
                 onDeleteProject={handleDeleteProject}
+            />
+
+            <ProjectAnalyticsModal
+                isOpen={isAnalyticsOpen}
+                onClose={() => setIsAnalyticsOpen(false)}
+                projectId={id}
             />
         </div>
     );

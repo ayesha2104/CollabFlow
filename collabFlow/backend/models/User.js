@@ -33,14 +33,6 @@ const userSchema = new mongoose.Schema({
     avatar: {
         type: String,
         default: 'https://ui-avatars.com/api/?name=User&background=random'
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
     }
 }, {
     timestamps: true
@@ -66,11 +58,5 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
-
-// Update updatedAt on save
-userSchema.pre('save', function (next) {
-    this.updatedAt = Date.now();
-    next();
-});
 
 module.exports = mongoose.model('User', userSchema);

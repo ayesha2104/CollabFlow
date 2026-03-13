@@ -1,29 +1,38 @@
 import React from 'react';
-import { Droppable } from '@hello-pangea/dnd';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 import TaskCard from './TaskCard';
 import { Plus } from 'lucide-react';
 import { tasksAPI } from '../../services/api'; 
 
-const TaskColumn = ({ column, tasks, onAddTask, onTaskClick }) => {
+const TaskColumn = ({ column, tasks, index, onAddTask, onTaskClick }) => {
     return (
-        <div className="flex flex-col bg-slate-800/50 rounded-xl border border-white/5 h-full w-80 flex-shrink-0 backdrop-blur-sm">
-            {/* Column Header */}
-            <div className="p-4 flex items-center justify-between border-b border-white/5">
-                <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-slate-200">{column.title}</h3>
-                    <span className="text-xs font-medium text-slate-500 bg-slate-900/50 px-2 py-0.5 rounded-full">
-                        {tasks.length}
-                    </span>
-                </div>
-                <div className="flex gap-1">
-                    <button
-                        onClick={() => onAddTask && onAddTask(column.id)}
-                        className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+        <Draggable draggableId={column.id} index={index}>
+            {(provided) => (
+                <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    className="flex flex-col bg-slate-800/50 rounded-xl border border-white/5 h-full w-80 flex-shrink-0 backdrop-blur-sm"
+                >
+                    {/* Column Header */}
+                    <div 
+                        {...provided.dragHandleProps}
+                        className="p-4 flex items-center justify-between border-b border-white/5 bg-slate-800/80 rounded-t-xl"
                     >
-                        <Plus size={18} />
-                    </button>
-                </div>
-            </div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-slate-200">{column.title}</h3>
+                            <span className="text-xs font-medium text-slate-500 bg-slate-900/50 px-2 py-0.5 rounded-full">
+                                {tasks.length}
+                            </span>
+                        </div>
+                        <div className="flex gap-1">
+                            <button
+                                onClick={() => onAddTask && onAddTask(column.id)}
+                                className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                            >
+                                <Plus size={18} />
+                            </button>
+                        </div>
+                    </div>
 
             {/* Scrollable Area */}
             <div className="flex-1 overflow-y-auto min-h-[150px]">
@@ -55,7 +64,9 @@ const TaskColumn = ({ column, tasks, onAddTask, onTaskClick }) => {
                     )}
                 </Droppable>
             </div>
-        </div>
+                </div>
+            )}
+        </Draggable>
     );
 };
 

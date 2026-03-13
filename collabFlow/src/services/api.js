@@ -75,7 +75,6 @@ api.interceptors.response.use(
 export const authAPI = {
     login: (credentials) => api.post('/auth/login', credentials),
     signup: (userData) => api.post('/auth/signup', userData),
-    logout: () => api.post('/auth/logout'),
     getProfile: () => api.get('/auth/me') // Backend uses /me not /profile
 };
 
@@ -87,7 +86,8 @@ export const projectsAPI = {
     update: (id, data) => api.put(`/projects/${id}`, data),
     delete: (id) => api.delete(`/projects/${id}`),
     inviteMembers: (id, emails) => api.post(`/projects/${id}/invite`, { emails }),
-    updateColumns: (id, columns) => api.put(`/projects/${id}/columns`, { columns })
+    updateColumns: (id, columns) => api.put(`/projects/${id}/columns`, { columns }),
+    getAnalytics: (id) => api.get(`/projects/${id}/analytics`)
 };
 
 // Tasks endpoints
@@ -100,7 +100,10 @@ export const tasksAPI = {
     move: (id, newStatus) =>
         api.patch(`/tasks/${id}/move`, { newStatus }),
     reorder: (projectId, items) => 
-        api.patch(`/projects/${projectId}/tasks/reorder`, { items })
+        api.patch(`/projects/${projectId}/tasks/reorder`, { items }),
+    addComment: (id, text) => api.post(`/tasks/${id}/comments`, { text }),
+    removeComment: (id, commentId) => api.delete(`/tasks/${id}/comments/${commentId}`),
+    addAttachment: (id, data) => api.post(`/tasks/${id}/attachments`, data)
 };
 
 // Activities endpoints

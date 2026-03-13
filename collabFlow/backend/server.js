@@ -83,6 +83,10 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+app.get('/', (req, res) => {
+    res.send('Backend is running 🚀');
+});
+
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -93,10 +97,6 @@ app.use('*', (req, res) => {
 
 // Error handler (must be last middleware)
 app.use(errorHandler);
-
-app.get('/', (req, res) => {
-    res.send('Backend is running 🚀');
-});
 
 const PORT = process.env.PORT || 5000;
 
@@ -123,3 +123,5 @@ process.on('uncaughtException', (err) => {
     logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...', err);
     process.exit(1);
 });
+
+module.exports = app;

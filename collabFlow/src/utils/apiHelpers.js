@@ -63,7 +63,9 @@ export const transformTaskFromBackend = (backendTask) => {
         id: backendTask._id || backendTask.id,
         status: toFrontendStatus(backendTask.status || 'todo'),
         priority: toFrontendPriority(backendTask.priority || 'medium'),
-        assignee: backendTask.assignee?.name || backendTask.assignee || '',
+        assignee: backendTask.assignee?._id || backendTask.assignee || '',
+        assigneeName: backendTask.assignee?.name || '',
+        assigneeAvatar: backendTask.assignee?.avatar || '',
         dueDate: backendTask.dueDate ? new Date(backendTask.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
     };
 };

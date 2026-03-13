@@ -109,9 +109,7 @@ export const tasksAPI = {
 // Activities endpoints
 export const activitiesAPI = {
     getByProject: (projectId, params = {}) =>
-        api.get(`/activities/project/${projectId}`, { params }),
-    getUserActivities: (params = {}) =>
-        api.get(`/activities/user`, { params }),
+        api.get(`/activities/project/${projectId}`, { params }), // Backend uses /activities/project/:projectId
 };
 
 export default api;

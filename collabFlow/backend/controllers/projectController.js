@@ -2,7 +2,7 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Activity = require('../models/Activity');
 const User = require('../models/User');
-const { PROJECT_ROLES } = require('../config/constants');
+const { PROJECT_ROLES, TASK_STATUS } = require('../config/constants');
 const sendEmail = require('../utils/sendEmail');
 
 // @desc    Get all projects for user
@@ -17,10 +17,50 @@ const getProjects = async (req, res, next) => {
             .populate('members.user', 'name email avatar')
             .sort({ updatedAt: -1 });
 
+        const projectIds = projects.map(p => p._id);
+
+        const taskCounts = await Task.aggregate([
+            { $match: { project: { $in: projectIds } } },
+            {
+                $group: {
+                    _id: '$project',
+                    taskCount: { $sum: 1 },
+                    activeTaskCount: {
+                        $sum: {
+                            $cond: [{ $ne: ['$status', TASK_STATUS.DONE] }, 1, 0]
+                        }
+                    },
+                    doneCount: {
+                        $sum: {
+                            $cond: [{ $eq: ['$status', TASK_STATUS.DONE] }, 1, 0]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        const countMap = {};
+        taskCounts.forEach(t => {
+            countMap[t._id.toString()] = t;
+        });
+
+        const projectsWithCounts = projects.map(p => {
+            const counts = countMap[p._id.toString()];
+            const taskCount = counts?.taskCount || 0;
+            const doneCount = counts?.doneCount || 0;
+
+            return {
+                ...p.toObject(),
+                taskCount,
+                activeTaskCount: counts?.activeTaskCount || 0,
+                progress: taskCount === 0 ? 0 : Math.round((doneCount / taskCount) * 100)
+            };
+        });
+
         res.status(200).json({
             success: true,
-            count: projects.length,
-            data: projects
+            count: projectsWithCounts.length,
+            data: projectsWithCounts
         });
     } catch (error) {
         next(error);
@@ -38,7 +78,7 @@ const createProject = async (req, res, next) => {
             name,
             description,
             owner: req.user._id,
-            members: [{ user: req.user._id, role: PROJECT_ROLES.OWNER }], // Ensure owner is added as member with owner role
+            members: [{ user: req.user._id, role: PROJECT_ROLES.OWNER }],
             columns: [
                 { id: 'col-1', title: 'To Do', order: 0 },
                 { id: 'col-2', title: 'In Progress', order: 1 },
@@ -46,7 +86,6 @@ const createProject = async (req, res, next) => {
             ]
         });
 
-        // Log activity
         await Activity.create({
             project: project._id,
             user: req.user._id,
@@ -74,9 +113,6 @@ const createProject = async (req, res, next) => {
 // @access  Private (Project member)
 const getProject = async (req, res, next) => {
     try {
-        // req.project is already populated by isProjectMember if you update lines 69-70 to just use req.project
-        // But for safety let's re-fetch if needed or use existing logic but lighter
-
         const project = await Project.findById(req.params.id)
             .populate('owner', 'name email avatar')
             .populate('members.user', 'name email avatar');
@@ -87,8 +123,6 @@ const getProject = async (req, res, next) => {
                 error: 'Project not found'
             });
         }
-
-        // Removed: Fetching all tasks here. Tasks should be fetched via /api/projects/:id/tasks
 
         res.status(200).json({
             success: true,
@@ -121,7 +155,6 @@ const updateProject = async (req, res, next) => {
             });
         }
 
-        // Log activity
         await Activity.create({
             project: project._id,
             user: req.user._id,
@@ -154,13 +187,8 @@ const deleteProject = async (req, res, next) => {
             });
         }
 
-        // Delete all tasks for this project
         await Task.deleteMany({ project: project._id });
-
-        // Delete all activities for this project
         await Activity.deleteMany({ project: project._id });
-
-        // Delete project
         await project.deleteOne();
 
         res.status(200).json({
@@ -195,7 +223,6 @@ const inviteMembers = async (req, res, next) => {
             });
         }
 
-        // Find users by email
         const users = await User.find({ email: { $in: emails } });
 
         if (users.length === 0) {
@@ -208,7 +235,6 @@ const inviteMembers = async (req, res, next) => {
         const invitedUsers = [];
         const alreadyMembers = [];
 
-        // Process each user
         users.forEach(user => {
             const isMember = project.members.some(
                 member => member.user.toString() === user._id.toString()
@@ -217,11 +243,10 @@ const inviteMembers = async (req, res, next) => {
             if (!isMember) {
                 let projectRole = PROJECT_ROLES.MEMBER;
 
-                // Set project role based on user's global role (Optional business logic)
                 if (user.role === 'PM' || user.role === 'admin') {
-                    projectRole = PROJECT_ROLES.PM; // Using constant
+                    projectRole = PROJECT_ROLES.PM;
                 } else if (user.role === 'Client') {
-                    projectRole = PROJECT_ROLES.CLIENT; // Using constant
+                    projectRole = PROJECT_ROLES.CLIENT;
                 }
 
                 project.members.push({
@@ -237,7 +262,6 @@ const inviteMembers = async (req, res, next) => {
 
         await project.save();
 
-        // Log activity for each invited user
         for (const user of invitedUsers) {
             await Activity.create({
                 project: project._id,
@@ -249,7 +273,6 @@ const inviteMembers = async (req, res, next) => {
                 }
             });
 
-            // Send email notification (non-blocking)
             sendEmail({
                 email: user.email,
                 subject: `You've been invited to ${project.name}`,
@@ -261,12 +284,10 @@ const inviteMembers = async (req, res, next) => {
             }).catch(err => console.error('Failed to send invite email:', err));
         }
 
-        // Populate members
         const populatedProject = await Project.findById(project._id)
             .populate('owner', 'name email avatar')
             .populate('members.user', 'name email avatar role');
 
-        // Broadcast real-time updates (if you have socket.io setup)
         if (req.io) {
             req.io.to(project._id.toString()).emit('members:updated', {
                 projectId: project._id,
@@ -304,7 +325,6 @@ const removeMember = async (req, res, next) => {
     try {
         const { projectId, userId } = req.params;
 
-        // Check if user is trying to remove themselves
         if (userId === req.user._id.toString()) {
             return res.status(400).json({
                 success: false,
@@ -321,7 +341,6 @@ const removeMember = async (req, res, next) => {
             });
         }
 
-        // Check if target user is the owner
         if (project.owner.toString() === userId) {
             return res.status(400).json({
                 success: false,
@@ -329,14 +348,12 @@ const removeMember = async (req, res, next) => {
             });
         }
 
-        // Remove member
         project.members = project.members.filter(
             member => member.user.toString() !== userId
         );
 
         await project.save();
 
-        // Log activity
         const removedUser = await User.findById(userId);
         await Activity.create({
             project: project._id,
@@ -352,7 +369,6 @@ const removeMember = async (req, res, next) => {
             .populate('owner', 'name email avatar')
             .populate('members.user', 'name email avatar role');
 
-        // Broadcast update
         if (req.io) {
             req.io.to(project._id.toString()).emit('members:updated', {
                 projectId: project._id,
@@ -393,7 +409,6 @@ const updateMemberRole = async (req, res, next) => {
             });
         }
 
-        // Find member
         const memberIndex = project.members.findIndex(
             member => member.user.toString() === userId
         );
@@ -405,11 +420,9 @@ const updateMemberRole = async (req, res, next) => {
             });
         }
 
-        // Update role
         project.members[memberIndex].role = role;
         await project.save();
 
-        // Log activity
         const updatedUser = await User.findById(userId);
         await Activity.create({
             project: project._id,
@@ -425,7 +438,6 @@ const updateMemberRole = async (req, res, next) => {
             .populate('owner', 'name email avatar')
             .populate('members.user', 'name email avatar role');
 
-        // Broadcast update
         if (req.io) {
             req.io.to(project._id.toString()).emit('members:updated', {
                 projectId: project._id,
@@ -493,25 +505,24 @@ const getProjectAnalytics = async (req, res, next) => {
         if (!project) {
             return res.status(404).json({ success: false, error: 'Project not found' });
         }
-        
+
         const tasks = await Task.find({ project: req.params.id });
         const activities = await Activity.find({ project: req.params.id })
             .sort({ createdAt: -1 })
             .limit(100);
 
-        // Compute analytics
         const totalTasks = tasks.length;
         const taskCounts = { todo: 0, inProgress: 0, done: 0 };
         const priorityCounts = { low: 0, medium: 0, high: 0 };
 
         tasks.forEach(task => {
-            if (task.status === 'todo' || task.status === 'to_do' || task.status === 'To Do') taskCounts.todo++;
-            else if (task.status === 'in_progress' || task.status === 'In Progress') taskCounts.inProgress++;
-            else if (task.status === 'done' || task.status === 'Done') taskCounts.done++;
+            if (task.status === TASK_STATUS.TODO) taskCounts.todo++;
+            else if (task.status === TASK_STATUS.IN_PROGRESS) taskCounts.inProgress++;
+            else if (task.status === TASK_STATUS.DONE) taskCounts.done++;
 
-            if (task.priority === 'low' || task.priority === 'Low') priorityCounts.low++;
-            else if (task.priority === 'medium' || task.priority === 'Medium') priorityCounts.medium++;
-            else if (task.priority === 'high' || task.priority === 'High') priorityCounts.high++;
+            if (task.priority === 'low') priorityCounts.low++;
+            else if (task.priority === 'medium') priorityCounts.medium++;
+            else if (task.priority === 'high') priorityCounts.high++;
         });
 
         const completionRate = totalTasks === 0 ? 0 : Math.round((taskCounts.done / totalTasks) * 100);

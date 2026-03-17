@@ -3,6 +3,7 @@ import { Users, MoreHorizontal, Calendar, Folder, PenTool, Megaphone, Smartphone
 import { useNavigate } from 'react-router-dom';
 
 const ProjectCard = ({ project }) => {
+    console.log('project:', project);
     const navigate = useNavigate();
 
     // Mock data fallback if props are missing

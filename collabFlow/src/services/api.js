@@ -101,7 +101,7 @@ export const tasksAPI = {
         api.patch(`/tasks/${id}/move`, { newStatus }),
     reorder: (projectId, items) => 
         api.patch(`/projects/${projectId}/tasks/reorder`, { items }),
-    addComment: (id, text) => api.post(`/tasks/${id}/comments`, { text }),
+    addComment: (id, text, parentId) => api.post(`/tasks/${id}/comments`, { text, parentId }),
     removeComment: (id, commentId) => api.delete(`/tasks/${id}/comments/${commentId}`),
     addAttachment: (id, data) => api.post(`/tasks/${id}/attachments`, data)
 };

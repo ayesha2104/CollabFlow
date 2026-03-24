@@ -17,6 +17,18 @@ const projectSchema = new mongoose.Schema({
         title: { type: String, required: true },
         order: { type: Number, required: true }
     }],
+    fieldDefinitions: [{
+        id: { type: String, required: true },
+        name: { type: String, required: true },
+        type: { type: String, enum: ['text', 'number', 'date', 'dropdown', 'boolean'], required: true },
+        options: [{ type: String }] // Used if type is 'dropdown'
+    }],
+    documents: [{
+        title: { type: String, required: true },
+        content: { type: String, default: '' },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        updatedAt: { type: Date, default: Date.now }
+    }],
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

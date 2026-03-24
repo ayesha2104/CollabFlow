@@ -399,9 +399,9 @@ export const useTasks = (projectId) => {
     }, [tasks, columns, projectId, emitTaskMoved]);
 
     // Add Comment
-    const addComment = useCallback(async (taskId, text) => {
+    const addComment = useCallback(async (taskId, text, parentId) => {
         try {
-            const response = await tasksAPI.addComment(taskId, text);
+            const response = await tasksAPI.addComment(taskId, text, parentId);
             // Handling varied backend response structure based on extractResponseData
             const responseData = response.data?.data || response.data || {};
             const comment = Array.isArray(responseData) ? responseData[0] : responseData;

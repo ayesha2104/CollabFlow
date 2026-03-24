@@ -5,8 +5,9 @@ import { useProjects } from '../../hooks/useProjects';
 const ProjectSettingsModal = ({ isOpen, onClose, project, onUpdateProject, onDeleteProject }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [fieldDefinitions, setFieldDefinitions] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState('general'); // 'general' or 'members'
+    const [activeTab, setActiveTab] = useState('general'); // 'general', 'members', 'fields'
     
     // Member invite state
     const [inviteEmail, setInviteEmail] = useState('');
@@ -17,6 +18,7 @@ const ProjectSettingsModal = ({ isOpen, onClose, project, onUpdateProject, onDel
         if (project && isOpen) {
             setName(project.name || '');
             setDescription(project.description || '');
+            setFieldDefinitions(project.fieldDefinitions || []);
             setActiveTab('general');
         }
     }, [project, isOpen]);
@@ -27,7 +29,7 @@ const ProjectSettingsModal = ({ isOpen, onClose, project, onUpdateProject, onDel
         e.preventDefault();
         setIsSaving(true);
         try {
-            await onUpdateProject({ name, description });
+            await onUpdateProject({ name, description, fieldDefinitions });
             onClose();
         } finally {
             setIsSaving(false);
@@ -85,6 +87,14 @@ const ProjectSettingsModal = ({ isOpen, onClose, project, onUpdateProject, onDel
                     >
                         <Users size={16} /> Members
                     </button>
+                    <button
+                        onClick={() => setActiveTab('fields')}
+                        className={`flex items-center gap-2 px-4 py-2 border-b-2 text-sm font-medium transition-colors ${
+                            activeTab === 'fields' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+                        }`}
+                    >
+                        <Settings size={16} /> Custom Fields
+                    </button>
                 </div>
 
                 <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
@@ -133,7 +143,7 @@ const ProjectSettingsModal = ({ isOpen, onClose, project, onUpdateProject, onDel
                                 </button>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'members' ? (
                         <div className="space-y-6">
                             {/* Invite Input */}
                             <div>
@@ -203,10 +213,80 @@ const ProjectSettingsModal = ({ isOpen, onClose, project, onUpdateProject, onDel
                                 </div>
                             </div>
                         </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-300">Custom Fields</h3>
+                                    <p className="text-xs text-slate-500 mt-1">Fields defined here will appear on all tasks in this project.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFieldDefinitions([...fieldDefinitions, { id: 'field_' + Date.now(), name: '', type: 'text' }])}
+                                    className="flex items-center gap-1.5 text-xs bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    <Plus size={14} /> Add Field
+                                </button>
+                            </div>
+                            <div className="space-y-3">
+                                {fieldDefinitions.map((field, idx) => (
+                                    <div key={field.id} className="flex gap-2 items-start bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                                        <div className="flex-1 space-y-2">
+                                            <input
+                                                type="text"
+                                                value={field.name}
+                                                onChange={(e) => {
+                                                    const newDefs = [...fieldDefinitions];
+                                                    newDefs[idx].name = e.target.value;
+                                                    setFieldDefinitions(newDefs);
+                                                }}
+                                                placeholder="Field Name (e.g., Environment)"
+                                                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded text-sm p-2 outline-none"
+                                            />
+                                            <select
+                                                value={field.type}
+                                                onChange={(e) => {
+                                                    const newDefs = [...fieldDefinitions];
+                                                    newDefs[idx].type = e.target.value;
+                                                    setFieldDefinitions(newDefs);
+                                                }}
+                                                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded text-sm p-2 outline-none"
+                                            >
+                                                <option value="text">Text</option>
+                                                <option value="number">Number</option>
+                                                <option value="date">Date</option>
+                                                <option value="dropdown">Dropdown</option>
+                                                <option value="boolean">Checkbox</option>
+                                            </select>
+                                            {field.type === 'dropdown' && (
+                                                <input
+                                                    type="text"
+                                                    value={field.options ? field.options.join(', ') : ''}
+                                                    onChange={(e) => {
+                                                        const newDefs = [...fieldDefinitions];
+                                                        newDefs[idx].options = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                                                        setFieldDefinitions(newDefs);
+                                                    }}
+                                                    placeholder="Options, comma separated"
+                                                    className="w-full bg-slate-800 border-slate-700 text-slate-200 rounded text-sm p-2 outline-none border border-dashed"
+                                                />
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFieldDefinitions(fieldDefinitions.filter((_, i) => i !== idx))}
+                                            className="text-slate-500 hover:text-red-400 p-2"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
 
-                {activeTab === 'general' && (
+                {activeTab !== 'members' && (
                     <div className="p-4 border-t border-slate-700 bg-slate-800/50 flex justify-end gap-3 shrink-0">
                         <button
                             type="button"

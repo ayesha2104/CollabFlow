@@ -34,9 +34,38 @@ const taskSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
+    startDate: {
+        type: Date
+    },
     dueDate: {
         type: Date
     },
+    estimatedTime: {
+        type: Number, // Stored in minutes
+        default: 0
+    },
+    customFields: {
+        type: Map,
+        of: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
+    subtasks: [{
+        title: { type: String, required: true },
+        isCompleted: { type: Boolean, default: false },
+        assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }],
+    dependencies: [{
+        task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
+        type: { type: String, enum: ['blocking', 'blockedBy'] }
+    }],
+    timeEntries: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        startTime: { type: Date, required: true },
+        endTime: { type: Date },
+        duration: { type: Number }, // duration in minutes
+        description: { type: String },
+        loggedAt: { type: Date, default: Date.now }
+    }],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -55,6 +84,9 @@ const taskSchema = new mongoose.Schema({
         createdAt: {
             type: Date,
             default: Date.now
+        },
+        parentId: {
+            type: mongoose.Schema.Types.ObjectId
         }
     }],
     attachments: [{

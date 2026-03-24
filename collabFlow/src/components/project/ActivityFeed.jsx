@@ -83,13 +83,8 @@ const ActivityItem = ({ activity }) => {
 
                     return (
                         <>
-                            {userName} updated <span className="text-slate-400">{field}</span> of {taskTitle}
-                            {newValue !== undefined && (
-                                <>
-                                    {' to '}
-                                    <span className="text-blue-400 font-medium">{String(newValue)}</span>
-                                </>
-                            )}
+                            {userName} updated <span className="text-slate-400">status</span> of {taskTitle}
+                            {newValue !== undefined}
                         </>
                     );
                 }
@@ -181,7 +176,7 @@ const ActivityFeed = ({ projectId, isOpen = true, onToggle }) => {
             const { activitiesAPI } = await import('../../services/api');
             const response = await activitiesAPI.getByProject(projectId, { limit: 20, skip });
             const activitiesData = response.data.activities || response.data.data || [];
-            
+
             setActivities(prev => [...prev, ...activitiesData]);
             setHasMore(response.data.pagination?.hasMore || false);
             setSkip(prev => prev + 20);

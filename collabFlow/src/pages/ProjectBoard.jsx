@@ -7,7 +7,10 @@ import ProjectSettingsModal from '../components/project/ProjectSettingsModal';
 import ProjectAnalyticsModal from '../components/project/ProjectAnalyticsModal';
 import ActivityFeed from '../components/project/ActivityFeed';
 import ActiveUsers from '../components/project/ActiveUsers';
-import { Settings, Filter, ArrowLeft, Plus, Activity, BarChart2 } from 'lucide-react';
+import ListView from '../components/project/ListView';
+import GanttView from '../components/project/GanttView';
+import DocsView from '../components/project/DocsView';
+import { Settings, Filter, ArrowLeft, Plus, Activity, BarChart2, LayoutGrid, List, CalendarDays, FileText } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import { useProjects } from '../hooks/useProjects';
@@ -43,6 +46,7 @@ const ProjectBoard = () => {
     const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
     const [isLoadingProject, setIsLoadingProject] = useState(true);
     const [showActivityFeed, setShowActivityFeed] = useState(true);
+    const [viewMode, setViewMode] = useState('board'); // 'board', 'list', 'gantt'
 
     // Search and Filter State
     const [searchTerm, setSearchTerm] = useState('');
@@ -249,6 +253,40 @@ const ProjectBoard = () => {
 
                     <div className="h-6 w-px bg-slate-700 mx-1"></div>
 
+                    {/* View Toggles */}
+                    <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700 hidden sm:flex">
+                        <button
+                            onClick={() => setViewMode('board')}
+                            className={`p-1.5 rounded-md transition-colors ${viewMode === 'board' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="Board View"
+                        >
+                            <LayoutGrid size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="List View"
+                        >
+                            <List size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('gantt')}
+                            className={`p-1.5 rounded-md transition-colors ${viewMode === 'gantt' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="Timeline View"
+                        >
+                            <CalendarDays size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('docs')}
+                            className={`p-1.5 rounded-md transition-colors ${viewMode === 'docs' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="Project Wiki"
+                        >
+                            <FileText size={16} />
+                        </button>
+                    </div>
+
+                    <div className="h-6 w-px bg-slate-700 mx-1 hidden sm:block"></div>
+
                     <button
                         onClick={() => setShowActivityFeed(!showActivityFeed)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${showActivityFeed ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700'}`}
@@ -276,40 +314,70 @@ const ProjectBoard = () => {
             <div className="flex-1 flex overflow-hidden">
                 {/* Board Canvas */}
                 <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                    <DragDropContext onDragEnd={onDragEnd}>
-                        <Droppable droppableId="board" direction="horizontal" type="column">
-                            {(provided) => (
-                                <div
-                                    className="h-full flex p-6 gap-6 min-w-max"
-                                    ref={provided.innerRef}
-                                    {...provided.droppableProps}
-                                >
-                                    {columnOrder.map((columnId, index) => {
-                                        const column = columns[columnId];
-                                        const filteredTasks = getFilteredTasks(column.taskIds);
-                                        return (
-                                            <TaskColumn
-                                                key={column.id}
-                                                column={column}
-                                                tasks={filteredTasks}
-                                                index={index}
-                                                onAddTask={handleAddTask}
-                                                onTaskClick={handleTaskClick}
-                                            />
-                                        );
-                                    })}
-                                    {provided.placeholder}
-
-                                    <button 
-                                        onClick={handleAddColumn}
-                                        className="w-80 h-12 rounded-xl bg-slate-800/30 border border-dashed border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex-shrink-0"
+                    {viewMode === 'board' && (
+                        <DragDropContext onDragEnd={onDragEnd}>
+                            <Droppable droppableId="board" direction="horizontal" type="column">
+                                {(provided) => (
+                                    <div
+                                        className="h-full flex p-6 gap-6 min-w-max"
+                                        ref={provided.innerRef}
+                                        {...provided.droppableProps}
                                     >
-                                        <Plus size={20} className="mr-2" /> Add Column
-                                    </button>
-                                </div>
-                            )}
-                        </Droppable>
-                    </DragDropContext>
+                                        {columnOrder.map((columnId, index) => {
+                                            const column = columns[columnId];
+                                            const filteredTasks = getFilteredTasks(column.taskIds);
+                                            return (
+                                                <TaskColumn
+                                                    key={column.id}
+                                                    column={column}
+                                                    tasks={filteredTasks}
+                                                    index={index}
+                                                    onAddTask={handleAddTask}
+                                                    onTaskClick={handleTaskClick}
+                                                />
+                                            );
+                                        })}
+                                        {provided.placeholder}
+
+                                        <button 
+                                            onClick={handleAddColumn}
+                                            className="w-80 h-12 rounded-xl bg-slate-800/30 border border-dashed border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex-shrink-0"
+                                        >
+                                            <Plus size={20} className="mr-2" /> Add Column
+                                        </button>
+                                    </div>
+                                )}
+                            </Droppable>
+                        </DragDropContext>
+                    )}
+
+                    {viewMode === 'list' && (
+                        <ListView 
+                            tasks={tasks}
+                            columns={columns}
+                            columnOrder={columnOrder}
+                            filterFn={getFilteredTasks}
+                            onTaskClick={handleTaskClick}
+                            project={project}
+                        />
+                    )}
+
+                    {viewMode === 'gantt' && (
+                        <GanttView 
+                            tasks={tasks}
+                            filterFn={getFilteredTasks}
+                            onTaskClick={handleTaskClick}
+                        />
+                    )}
+
+                    {viewMode === 'docs' && project && (
+                        <div className="flex-1 overflow-hidden p-6 max-w-6xl mx-auto w-full">
+                            <DocsView 
+                                project={project}
+                                onUpdateProject={handleUpdateProject}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Activity Feed Sidebar */}
@@ -326,6 +394,8 @@ const ProjectBoard = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 task={selectedTask ? tasks[selectedTask.id] : null}
+                project={project}
+                allTasks={tasks}
                 onSave={handleUpdateTask}
                 onDelete={handleDeleteTask}
                 onAddComment={addComment}

@@ -138,11 +138,16 @@ const getProject = async (req, res, next) => {
 // @access  Private (Project owner)
 const updateProject = async (req, res, next) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, fieldDefinitions } = req.body;
+
+        const updateData = { name, description, updatedAt: Date.now() };
+        if (fieldDefinitions !== undefined) {
+            updateData.fieldDefinitions = fieldDefinitions;
+        }
 
         const project = await Project.findByIdAndUpdate(
             req.params.id,
-            { name, description, updatedAt: Date.now() },
+            updateData,
             { new: true, runValidators: true }
         )
             .populate('owner', 'name email avatar')

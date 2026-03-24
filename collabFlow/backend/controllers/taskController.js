@@ -202,7 +202,11 @@ const updateTask = async (req, res, next) => {
         });
 
         // Update task with whitelisted fields
-        const allowedFields = ['title', 'description', 'status', 'priority', 'order', 'assignee', 'dueDate'];
+        const allowedFields = [
+            'title', 'description', 'status', 'priority', 'order', 'assignee', 
+            'dueDate', 'startDate', 'estimatedTime', 'customFields', 'subtasks',
+            'dependencies', 'timeEntries'
+        ];
         allowedFields.forEach(field => {
             if (req.body[field] !== undefined) {
                 task[field] = req.body[field];
@@ -456,8 +460,9 @@ const addComment = async (req, res, next) => {
         // Add comment
         const newComment = {
             user: req.user._id,
-            text: text.trim(),
-            createdAt: Date.now()
+            text: req.body.text ? req.body.text.trim() : '',
+            createdAt: Date.now(),
+            ...(req.body.parentId && { parentId: req.body.parentId })
         };
 
         task.comments.push(newComment);

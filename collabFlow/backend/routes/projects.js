@@ -33,6 +33,21 @@ const createProjectValidation = [
         .withMessage('Description cannot be more than 500 characters')
 ];
 
+const updateProjectValidation = [
+    body('name')
+        .optional()
+        .trim()
+        .notEmpty()
+        .withMessage('Project name cannot be empty if provided')
+        .isLength({ max: 100 })
+        .withMessage('Project name cannot be more than 100 characters'),
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Description cannot be more than 500 characters')
+];
+
 const inviteMembersValidation = [
     body('emails')
         .isArray()
@@ -60,7 +75,7 @@ router.post('/', createProjectValidation, validate, createProject);
 router.get('/:id', isProjectMember, getProject);
 router.get('/:id/tasks', isProjectMember, getTasksByProject); // New endpoint for tasks
 router.patch('/:id/tasks/reorder', isProjectMember, reorderTasks);
-router.put('/:id', isProjectOwner, createProjectValidation, validate, updateProject);
+router.put('/:id', isProjectOwner, updateProjectValidation, validate, updateProject);
 router.put('/:id/columns', isProjectOwner, validate, updateProjectColumns);
 router.get('/:id/analytics', isProjectMember, getProjectAnalytics);
 router.delete('/:id', isProjectOwner, deleteProject);

@@ -27,6 +27,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
 
     // Mock active viewers removed
     const [activeViewers] = useState([]);
+    const [replyingTo, setReplyingTo] = useState(null);
 
     useEffect(() => {
         if (task) {
@@ -93,7 +94,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
         const minStr = prompt('Enter minutes spent:');
         if (!minStr || isNaN(minStr)) return;
         const mins = parseInt(minStr, 10);
-        
+
         const newEntry = {
             user: user?._id || user?.id,
             startTime: new Date(),
@@ -124,8 +125,6 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
             onClose();
         }
     };
-
-    const [replyingTo, setReplyingTo] = useState(null);
 
     const handleAddComment = async (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -424,15 +423,15 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                                                         </div>
                                                     </div>
                                                     <p className="text-sm text-slate-400 whitespace-pre-wrap">{comment.text}</p>
-                                                    <button 
-                                                        onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)} 
+                                                    <button
+                                                        onClick={() => setReplyingTo(replyingTo === comment._id ? null : comment._id)}
                                                         className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition-colors"
                                                     >
                                                         Reply
                                                     </button>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Replies */}
                                             {getReplies(comment._id).length > 0 && (
                                                 <div className="ml-11 mt-3 space-y-3 border-l-2 border-slate-700/50 pl-4">
@@ -477,7 +476,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                                     {replyingTo && (
                                         <div className="flex items-center justify-between bg-slate-800 border border-b-0 border-slate-700 p-2 rounded-t-lg text-xs text-slate-400">
                                             <span>Replying to comment...</span>
-                                            <button onClick={() => setReplyingTo(null)} className="hover:text-slate-200"><X size={14}/></button>
+                                            <button onClick={() => setReplyingTo(null)} className="hover:text-slate-200"><X size={14} /></button>
                                         </div>
                                     )}
                                     <div className={`flex items-start gap-3 p-3 bg-slate-900/30 border border-slate-700 ${replyingTo ? 'rounded-b-lg' : 'rounded-lg'}`}>
@@ -547,22 +546,22 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
 
                                 {/* Dates & Time */}
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div>
+                                    <div className="flex flex-col h-full">
                                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Start Date</label>
-                                        <div className="relative">
+                                        <div className="relative mt-auto">
                                             <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                             <input
                                                 type="date"
-                                                className="w-full bg-slate-700 border-none rounded-lg text-sm text-white py-2 pl-8 pr-2 focus:ring-2 focus:ring-blue-500 style-color-scheme-dark"
+                                                className="w-full bg-slate-700 border-none rounded-lg text-sm text-white py-2 pl-8 pr-2 focus:ring-2 focus:ring-blue-500"
                                                 value={formData.startDate}
                                                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                                                 style={{ colorScheme: 'dark' }}
                                             />
                                         </div>
                                     </div>
-                                    <div>
+                                    <div className="flex flex-col h-full">
                                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">Due Date</label>
-                                        <div className="relative">
+                                        <div className="relative mt-auto">
                                             <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                             <input
                                                 type="date"
@@ -596,17 +595,16 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                                         <button
                                             type="button"
                                             onClick={handleToggleTimer}
-                                            className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors ${
-                                                timerState.isRunning 
-                                                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
-                                                : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                                            }`}
+                                            className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors ${timerState.isRunning
+                                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                                    : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                                                }`}
                                         >
                                             {timerState.isRunning ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
                                             {timerState.isRunning ? formatElapsedTime(timerState.elapsed) : 'Start Timer'}
                                         </button>
                                     </div>
-                                    
+
                                     <div className="space-y-2 mt-2">
                                         {formData.timeEntries.length > 0 ? (
                                             <div className="flex justify-between items-center text-sm font-semibold text-slate-300 bg-slate-800/50 p-2 rounded border border-slate-700">
@@ -699,7 +697,7 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                         >
                             <Trash2 size={16} /> Delete Task
                         </button>
-                        <span className="text-xs text-slate-500">Press Esc to close</span>
+
                     </div>
                     <div className="flex items-center gap-3">
                         <button

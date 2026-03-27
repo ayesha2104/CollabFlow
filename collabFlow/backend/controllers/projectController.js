@@ -138,11 +138,16 @@ const getProject = async (req, res, next) => {
 // @access  Private (Project owner)
 const updateProject = async (req, res, next) => {
     try {
-        const { name, description, fieldDefinitions } = req.body;
+        const { name, description, fieldDefinitions, documents } = req.body;
 
-        const updateData = { name, description, updatedAt: Date.now() };
+        const updateData = { updatedAt: Date.now() };
+        if (name !== undefined) updateData.name = name;
+        if (description !== undefined) updateData.description = description;
         if (fieldDefinitions !== undefined) {
             updateData.fieldDefinitions = fieldDefinitions;
+        }
+        if (documents !== undefined) {
+            updateData.documents = documents;
         }
 
         const project = await Project.findByIdAndUpdate(

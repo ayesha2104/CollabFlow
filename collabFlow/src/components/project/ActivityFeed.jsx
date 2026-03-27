@@ -76,29 +76,36 @@ const ActivityItem = ({ activity }) => {
                 if (changes && Object.keys(changes).length > 0) {
                     const changedFields = Object.keys(changes);
                     const field = changedFields[0]; // Show the first change for brevity
-                    const { old: oldValue, new: newValue } = changes[field];
+                    const changeVal = changes[field] || {};
+                    const oldValue = changeVal.old;
+                    const newValue = changeVal.new !== undefined ? changeVal.new : changeVal;
 
                     // Format some common fields for better readability
                     const displayField = field.charAt(0).toUpperCase() + field.slice(1);
 
                     return (
                         <>
-                            {userName} updated <span className="text-slate-400">status</span> of {taskTitle}
-                            {newValue !== undefined}
+                            {userName} updated <span className="text-slate-400">{displayField}</span> of {taskTitle}
+                            {newValue !== undefined && newValue !== null && newValue !== changeVal && typeof newValue !== 'object' && (
+                                <>
+                                    {' to '}
+                                    <span className="text-blue-400 font-medium">{String(newValue)}</span>
+                                </>
+                            )}
                         </>
                     );
                 }
                 return <>{userName} updated {taskTitle}</>;
 
             case 'task_assigned':
-                const assignee = details?.assignee || (metadata?.changes?.assignee?.new);
+                const assignee = details?.assignee || metadata?.changes?.assignee?.new || metadata?.changes?.assignee;
                 return (
                     <>
                         {userName} assigned {taskTitle}
-                        {assignee && (
+                        {assignee && typeof assignee !== 'object' && (
                             <>
                                 {' to '}
-                                <span className="font-medium text-blue-400">{assignee}</span>
+                                <span className="font-medium text-blue-400">{String(assignee)}</span>
                             </>
                         )}
                     </>
@@ -123,7 +130,7 @@ const ActivityItem = ({ activity }) => {
                 </p>
                 <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
                     <Clock size={10} />
-                    <span>{formatActivityTime(activity.timestamp)}</span>
+                    <span>{formatActivityTime(activity.timestamp || activity.createdAt)}</span>
                 </div>
             </div>
         </div>

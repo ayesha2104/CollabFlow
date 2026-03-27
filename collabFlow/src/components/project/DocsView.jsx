@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css'; // ES6
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css'; // ES6
 import { Plus, Trash2, Save, FileText } from 'lucide-react';
 
 const DocsView = ({ project, onUpdateProject }) => {

@@ -512,10 +512,15 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                                         <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                         <select
                                             className="w-full bg-slate-700 border-none rounded-lg text-sm text-white py-2 pl-9 pr-3 focus:ring-2 focus:ring-blue-500"
-                                            value={formData.assignee}
+                                            value={formData.assignee || ''}
                                             onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
                                         >
-
+                                            <option value="">Unassigned</option>
+                                            {project?.members?.map(member => (
+                                                <option key={member.id} value={member.id}>
+                                                    {member.name}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
@@ -596,8 +601,8 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                                             type="button"
                                             onClick={handleToggleTimer}
                                             className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors ${timerState.isRunning
-                                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                                                    : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                                                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                                : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
                                                 }`}
                                         >
                                             {timerState.isRunning ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
@@ -697,7 +702,6 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
                         >
                             <Trash2 size={16} /> Delete Task
                         </button>
-
                     </div>
                     <div className="flex items-center gap-3">
                         <button

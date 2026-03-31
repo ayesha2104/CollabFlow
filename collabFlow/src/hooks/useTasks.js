@@ -28,7 +28,9 @@ export const useTasks = (projectId) => {
     const handleExternalTaskCreated = useCallback((data) => {
         // Receive projectId from payload (preferred) or use current context projectId
         const taskProjectId = data.projectId || projectId;
-        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
+        if (!taskProjectId) return; // No projectId from any source
+        // Only validate mismatch if both sources have projectId
+        if (projectId && data.projectId && data.projectId !== projectId) return;
 
         // Transform task from backend format
         const transformedTask = transformTaskFromBackend(data.task);
@@ -54,7 +56,9 @@ export const useTasks = (projectId) => {
     const handleExternalTaskUpdated = useCallback((data) => {
         // Receive projectId from payload (preferred) or use current context projectId
         const taskProjectId = data.projectId || projectId;
-        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
+        if (!taskProjectId) return; // No projectId from any source
+        // Only validate mismatch if both sources have projectId
+        if (projectId && data.projectId && data.projectId !== projectId) return;
 
         // Transform updates from backend format
         const transformedUpdates = { ...data.updates };
@@ -74,7 +78,9 @@ export const useTasks = (projectId) => {
     const handleExternalTaskDeleted = useCallback((data) => {
         // Receive projectId from payload (preferred) or use current context projectId
         const taskProjectId = data.projectId || projectId;
-        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
+        if (!taskProjectId) return; // No projectId from any source
+        // Only validate mismatch if both sources have projectId
+        if (projectId && data.projectId && data.projectId !== projectId) return;
 
         setTasks(prev => {
             const newTasks = { ...prev };
@@ -97,7 +103,9 @@ export const useTasks = (projectId) => {
     const handleExternalTaskMoved = useCallback((data) => {
         // Receive projectId from payload (preferred) or use current context projectId
         const taskProjectId = data.projectId || projectId;
-        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
+        if (!taskProjectId) return; // No projectId from any source
+        // Only validate mismatch if both sources have projectId
+        if (projectId && data.projectId && data.projectId !== projectId) return;
 
         // Convert backend status to frontend format for matching
         const frontendOldStatus = toFrontendStatus(data.oldStatus);

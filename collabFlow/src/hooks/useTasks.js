@@ -26,11 +26,12 @@ export const useTasks = (projectId) => {
 
     // Handle external task updates (from socket events)
     const handleExternalTaskCreated = useCallback((data) => {
-        const { task, projectId: eventProjectId } = data;
-        if (eventProjectId !== projectId) return;
+        // Receive projectId from payload (preferred) or use current context projectId
+        const taskProjectId = data.projectId || projectId;
+        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
 
         // Transform task from backend format
-        const transformedTask = transformTaskFromBackend(task);
+        const transformedTask = transformTaskFromBackend(data.task);
 
         setTasks(prev => ({ ...prev, [transformedTask.id]: transformedTask }));
         setColumns(prev => {
@@ -51,31 +52,33 @@ export const useTasks = (projectId) => {
     }, [projectId]);
 
     const handleExternalTaskUpdated = useCallback((data) => {
-        const { taskId, updates, projectId: eventProjectId } = data;
-        if (eventProjectId !== projectId) return;
+        // Receive projectId from payload (preferred) or use current context projectId
+        const taskProjectId = data.projectId || projectId;
+        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
 
         // Transform updates from backend format
-        const transformedUpdates = { ...updates };
-        if (updates.status) {
-            transformedUpdates.status = toFrontendStatus(updates.status);
+        const transformedUpdates = { ...data.updates };
+        if (data.updates.status) {
+            transformedUpdates.status = toFrontendStatus(data.updates.status);
         }
-        if (updates.priority) {
-            transformedUpdates.priority = updates.priority.charAt(0).toUpperCase() + updates.priority.slice(1);
+        if (data.updates.priority) {
+            transformedUpdates.priority = data.updates.priority.charAt(0).toUpperCase() + data.updates.priority.slice(1);
         }
 
         setTasks(prev => ({
             ...prev,
-            [taskId]: { ...prev[taskId], ...transformedUpdates }
+            [data.taskId]: { ...prev[data.taskId], ...transformedUpdates }
         }));
     }, [projectId]);
 
     const handleExternalTaskDeleted = useCallback((data) => {
-        const { taskId, projectId: eventProjectId } = data;
-        if (eventProjectId !== projectId) return;
+        // Receive projectId from payload (preferred) or use current context projectId
+        const taskProjectId = data.projectId || projectId;
+        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
 
         setTasks(prev => {
             const newTasks = { ...prev };
-            delete newTasks[taskId];
+            delete newTasks[data.taskId];
             return newTasks;
         });
 
@@ -84,7 +87,7 @@ export const useTasks = (projectId) => {
             Object.keys(newColumns).forEach(colId => {
                 newColumns[colId] = {
                     ...newColumns[colId],
-                    taskIds: newColumns[colId].taskIds.filter(id => id !== taskId)
+                    taskIds: newColumns[colId].taskIds.filter(id => id !== data.taskId)
                 };
             });
             return newColumns;
@@ -92,12 +95,13 @@ export const useTasks = (projectId) => {
     }, [projectId]);
 
     const handleExternalTaskMoved = useCallback((data) => {
-        const { taskId, oldStatus, newStatus, projectId: eventProjectId } = data;
-        if (eventProjectId !== projectId) return;
+        // Receive projectId from payload (preferred) or use current context projectId
+        const taskProjectId = data.projectId || projectId;
+        if (!taskProjectId || (data.projectId && data.projectId !== projectId)) return;
 
         // Convert backend status to frontend format for matching
-        const frontendOldStatus = toFrontendStatus(oldStatus);
-        const frontendNewStatus = toFrontendStatus(newStatus);
+        const frontendOldStatus = toFrontendStatus(data.oldStatus);
+        const frontendNewStatus = toFrontendStatus(data.newStatus);
 
         setColumns(prev => {
             const sourceColId = Object.keys(prev).find(
@@ -112,20 +116,20 @@ export const useTasks = (projectId) => {
             const newColumns = { ...prev };
             newColumns[sourceColId] = {
                 ...newColumns[sourceColId],
-                taskIds: newColumns[sourceColId].taskIds.filter(id => id !== taskId)
+                taskIds: newColumns[sourceColId].taskIds.filter(id => id !== data.taskId)
             };
             newColumns[destColId] = {
                 ...newColumns[destColId],
-                taskIds: [...newColumns[destColId].taskIds, taskId]
+                taskIds: [...newColumns[destColId].taskIds, data.taskId]
             };
             return newColumns;
         });
 
         setTasks(prev => {
-            if (!prev[taskId]) return prev;
+            if (!prev[data.taskId]) return prev;
             return {
                 ...prev,
-                [taskId]: { ...prev[taskId], status: frontendNewStatus }
+                [data.taskId]: { ...prev[data.taskId], status: frontendNewStatus }
             };
         });
     }, [projectId]);
@@ -181,7 +185,7 @@ export const useTasks = (projectId) => {
             tasksArray.sort((a, b) => (a.order || 0) - (b.order || 0));
 
             const transformedTasks = {};
-            
+
             // Re-initialize correct columns
             let cols = {};
             let colOrder = [];
@@ -405,7 +409,7 @@ export const useTasks = (projectId) => {
             // Handling varied backend response structure based on extractResponseData
             const responseData = response.data?.data || response.data || {};
             const comment = Array.isArray(responseData) ? responseData[0] : responseData;
-            
+
             setTasks(prev => {
                 const task = prev[taskId];
                 if (!task) return prev;
@@ -428,7 +432,7 @@ export const useTasks = (projectId) => {
     const removeComment = useCallback(async (taskId, commentId) => {
         try {
             await tasksAPI.removeComment(taskId, commentId);
-            
+
             setTasks(prev => {
                 const task = prev[taskId];
                 if (!task) return prev;
@@ -452,7 +456,7 @@ export const useTasks = (projectId) => {
             const response = await tasksAPI.addAttachment(taskId, attachmentData);
             const responseData = response.data?.data || response.data || {};
             const attachment = Array.isArray(responseData) ? responseData[0] : responseData;
-            
+
             setTasks(prev => {
                 const task = prev[taskId];
                 if (!task) return prev;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Calendar, User, Flag, Trash2, Save, Clock, Circle, Plus, Link as LinkIcon, Play, Square } from 'lucide-react';
+import { X, Calendar, User, Trash2, Save, Clock, Circle, Plus, Link as LinkIcon, Play, Square } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -107,14 +107,19 @@ const TaskDetailModal = ({ isOpen, onClose, task, project, allTasks, onDelete, o
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.title.trim()) {
             toast.error('Task title is required');
             return;
         }
 
-        onSave && onSave({ ...task, ...formData });
-        toast.success('Task updated successfully');
+        if (onSave) {
+            await onSave({ ...task, ...formData });
+        }
+
+        if (!task?.isDraft) {
+            toast.success('Task updated successfully');
+        }
         onClose();
     };
 

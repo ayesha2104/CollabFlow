@@ -425,7 +425,7 @@ const ProjectBoard = () => {
             <TaskDetailModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                task={selectedTask ? tasks[selectedTask.id] : null}
+                task={selectedTask}
                 project={project}
                 allTasks={tasks}
                 onSave={handleUpdateTask}

@@ -18,7 +18,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate }) => {
         if (e.key === 'Enter' && memberEmail.trim()) {
             e.preventDefault();
             const email = memberEmail.trim().toLowerCase();
-            
+
             // Basic email validation
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 toast.error('Please enter a valid email address');
@@ -68,7 +68,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate }) => {
             };
 
             onCreate(newProject);
-            toast.success('Project created successfully!');
+            // toast.success('Project created successfully!');
             setFormData({ name: '', description: '', members: [] }); // Reset form
             setMemberEmail('');
             setIsLoading(false);

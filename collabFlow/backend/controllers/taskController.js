@@ -16,6 +16,15 @@ const getUserProjectRole = (project, userId) => {
     return member ? member.role : null;
 };
 
+// Helper to check if user can create tasks (Admin or any project member)
+const canCreateTask = (user, project, userId) => {
+    if (user.role === 'admin') {
+        return true;
+    }
+
+    return isProjectMember(project, userId);
+};
+
 // Helper to check if user can delete tasks (Admin, Owner, or PM)
 const canDeleteTask = (user, project, userId) => {
     // Global admin can delete tasks
@@ -80,9 +89,17 @@ const createTask = async (req, res, next) => {
             if (!project) {
                 return res.status(404).json({ success: false, error: 'Project not found' });
             }
-            if (!isProjectMember(project, req.user._id)) {
-                return res.status(403).json({ success: false, error: 'Not a project member' });
-            }
+        }
+
+        if (!canCreateTask(req.user, project, req.user._id)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized to create tasks for this project'
+            });
+        }
+
+        if (project && !isProjectMember(project, req.user._id) && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, error: 'Not a project member' });
         }
 
         // Validate assignee is a project member

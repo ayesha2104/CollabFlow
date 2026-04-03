@@ -98,6 +98,6 @@ router.post('/:id/attachments', [
     body('url').isURL().withMessage('Valid URL is required')
 ], validate, addAttachment);
 router.put('/:id', updateTaskValidation, validate, updateTask);
-router.delete('/:id', protect, authorize('admin', 'pm'), deleteTask);
+router.delete('/:id', deleteTask);
 
 module.exports = router;

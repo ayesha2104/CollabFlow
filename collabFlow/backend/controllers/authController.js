@@ -21,7 +21,7 @@ const signup = async (req, res, next) => {
         const user = await User.create({
             name,
             email,
-            password
+            password,
         });
 
         // Generate token
@@ -81,7 +81,7 @@ const login = async (req, res, next) => {
                 name: user.name,
                 email: user.email,
                 avatar: user.avatar,
-                role: user.role // Add this line
+                role: user.role
             }
         });
     } catch (error) {
@@ -101,7 +101,7 @@ const getMe = async (req, res, next) => {
                 name: req.user.name,
                 email: req.user.email,
                 avatar: req.user.avatar,
-                role: req.user.role // Add this line
+                role: req.user.role
             }
         });
     } catch (error) {

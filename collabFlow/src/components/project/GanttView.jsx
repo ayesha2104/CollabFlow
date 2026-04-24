@@ -1,17 +1,26 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { addDays, format, differenceInDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
+const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+        const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+    return new Date(dateStr);
+};
+
 const GanttView = ({ tasks, filterFn, onTaskClick }) => {
-    // Flatten and filter all tasks
+    const scrollRef = useRef(null);
+
     const allTasksArray = useMemo(() => {
         return filterFn(Object.keys(tasks)).sort((a, b) => {
-            const dateA = a.startDate || a.dueDate || a.createdAt;
-            const dateB = b.startDate || b.dueDate || b.createdAt;
-            return new Date(dateA) - new Date(dateB);
+            const dateA = parseLocalDate(a.startDate || a.dueDate || a.createdAt);
+            const dateB = parseLocalDate(b.startDate || b.dueDate || b.createdAt);
+            return dateA - dateB;
         });
     }, [tasks, filterFn]);
 
-    // Calculate timeline range
     const { startDate, endDate, days } = useMemo(() => {
         if (allTasksArray.length === 0) {
             const now = new Date();
@@ -20,20 +29,19 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
             return { startDate: start, endDate: end, days: eachDayOfInterval({ start, end }) };
         }
 
-        let minDate = new Date();
-        let maxDate = new Date();
+        let minDate = null;
+        let maxDate = null;
 
         allTasksArray.forEach(task => {
-            const start = task.startDate ? new Date(task.startDate) : (task.dueDate ? new Date(task.dueDate) : new Date(task.createdAt));
-            const end = task.dueDate ? new Date(task.dueDate) : start;
-            if (start < minDate) minDate = start;
-            if (end > maxDate) maxDate = end;
+            const start = parseLocalDate(task.startDate) || parseLocalDate(task.dueDate) || new Date(task.createdAt);
+            const end = parseLocalDate(task.dueDate) || start;
+            if (!minDate || start < minDate) minDate = start;
+            if (!maxDate || end > maxDate) maxDate = end;
         });
 
-        // Add some padding
         const paddedStart = addDays(minDate, -5);
         const paddedEnd = addDays(maxDate, 15);
-        
+
         return {
             startDate: paddedStart,
             endDate: paddedEnd,
@@ -44,24 +52,21 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
     const criticalPathIds = useMemo(() => {
         const taskMap = new Map();
         let maxEndDate = new Date(0);
-        
+
         allTasksArray.forEach(t => {
-            const start = t.startDate ? new Date(t.startDate) : (t.dueDate ? new Date(t.dueDate) : new Date(t.createdAt));
-            const end = t.dueDate ? new Date(t.dueDate) : start;
+            const start = parseLocalDate(t.startDate) || parseLocalDate(t.dueDate) || new Date(t.createdAt);
+            const end = parseLocalDate(t.dueDate) || start;
             if (end > maxEndDate) maxEndDate = end;
-            taskMap.set(t.id, { ...t, endStr: end.toISOString() });
+            taskMap.set(t.id, { ...t, endDate: end });
         });
 
-        const blockedByMap = new Map(); // taskId -> array of taskIds that block it
-        allTasksArray.forEach(t => {
-            blockedByMap.set(t.id, []);
-        });
+        const blockedByMap = new Map();
+        allTasksArray.forEach(t => blockedByMap.set(t.id, []));
 
         allTasksArray.forEach(t => {
             if (t.dependencies) {
                 t.dependencies.forEach(dep => {
                     const depId = typeof dep.task === 'object' ? dep.task._id : dep.task;
-                    // If t blocks depId, depId is blocked by t
                     if (dep.type === 'blocking' && blockedByMap.has(depId)) {
                         blockedByMap.get(depId).push(t.id);
                     } else if (dep.type === 'blockedBy' && blockedByMap.has(depId)) {
@@ -72,35 +77,33 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
         });
 
         const criticalSet = new Set();
-        const maxEndStr = maxEndDate.toISOString().substring(0, 10);
-        
+        const maxEndStr = maxEndDate.toDateString();
+
         const terminalTasks = allTasksArray.filter(t => {
-            const end = t.dueDate ? new Date(t.dueDate) : (t.startDate ? new Date(t.startDate) : new Date(t.createdAt));
-            // Ensure no one is blocked by this task
+            const end = parseLocalDate(t.dueDate) || parseLocalDate(t.startDate) || new Date(t.createdAt);
             let blocksSomeone = false;
-            for (const [id, blockers] of blockedByMap.entries()) {
-                if (blockers.includes(t.id)) blocksSomeone = true;
+            for (const blockers of blockedByMap.values()) {
+                if (blockers.includes(t.id)) { blocksSomeone = true; break; }
             }
-            return !blocksSomeone && end.toISOString().substring(0, 10) === maxEndStr;
+            return !blocksSomeone && end.toDateString() === maxEndStr;
         });
 
         const traverseBackwards = (taskId) => {
             if (criticalSet.has(taskId)) return;
             criticalSet.add(taskId);
-            const blockers = blockedByMap.get(taskId) || [];
-            blockers.forEach(bId => traverseBackwards(bId));
+            (blockedByMap.get(taskId) || []).forEach(bId => traverseBackwards(bId));
         };
 
         terminalTasks.forEach(t => traverseBackwards(t.id));
         return criticalSet;
     }, [allTasksArray]);
 
-    const cellWidth = 40; // px per day
+    const cellWidth = 40;
 
     const getTaskStyles = (task) => {
-        const start = task.startDate ? new Date(task.startDate) : (task.dueDate ? new Date(task.dueDate) : new Date(task.createdAt));
-        const end = task.dueDate ? new Date(task.dueDate) : start;
-        
+        const start = parseLocalDate(task.startDate) || parseLocalDate(task.dueDate) || new Date(task.createdAt);
+        const end = parseLocalDate(task.dueDate) || start;
+
         const offsetDays = differenceInDays(start, startDate);
         let durationDays = differenceInDays(end, start) + 1;
         if (durationDays < 1) durationDays = 1;
@@ -126,7 +129,7 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
 
     return (
         <div className="w-full h-full flex flex-col overflow-hidden bg-slate-900 border-l border-t border-slate-700 rounded-tl-xl mx-6 mt-6 shadow-2xl">
-            {/* Header / Timeline Axis */}
+            {/* Header */}
             <div className="flex border-b border-slate-700 bg-slate-800/80 shrink-0">
                 <div className="w-64 shrink-0 border-r border-slate-700 p-4 font-semibold text-slate-300 flex items-center shadow-md z-10 bg-slate-800">
                     Tasks
@@ -136,10 +139,9 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
                         {days.map((day, i) => {
                             const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                            
                             return (
-                                <div 
-                                    key={i} 
+                                <div
+                                    key={i}
                                     className={`shrink-0 flex flex-col items-center justify-center border-r border-slate-700/50 py-2 h-14 ${isWeekend ? 'bg-slate-800/30' : ''} ${isToday ? 'bg-blue-500/10' : ''}`}
                                     style={{ width: cellWidth }}
                                 >
@@ -154,13 +156,14 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
                 </div>
             </div>
 
-            {/* Gantt Body */}
-            <div className="flex flex-1 overflow-y-auto overflow-x-hidden relative custom-scrollbar">
+            {/* Body */}
+            <div className="flex flex-1 overflow-hidden">
                 {/* Fixed Task List */}
-                <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-800/50 z-10">
+                <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-800/50 z-10 overflow-y-auto custom-scrollbar"
+                    onScroll={e => { if (scrollRef.current) scrollRef.current.scrollTop = e.target.scrollTop; }}>
                     {allTasksArray.map(task => (
-                        <div 
-                            key={`list-${task.id}`} 
+                        <div
+                            key={`list-${task.id}`}
                             className="h-12 border-b border-slate-700/50 px-4 flex items-center cursor-pointer hover:bg-slate-700/50 transition-colors group"
                             onClick={() => onTaskClick(task)}
                         >
@@ -172,38 +175,45 @@ const GanttView = ({ tasks, filterFn, onTaskClick }) => {
                     )}
                 </div>
 
-                {/* Scrollable Timeline Area */}
-                <div className="flex-1 overflow-x-auto relative custom-scrollbar">
-                    <div className="relative" style={{ width: days.length * cellWidth, minHeight: '100%' }}>
-                        {/* Vertical Grid Lines */}
+                {/* Scrollable Timeline */}
+                <div
+                    ref={scrollRef}
+                    className="flex-1 overflow-auto custom-scrollbar"
+                    onScroll={e => {
+                        // sync header horizontal scroll
+                        const header = e.target.closest('.flex-col')?.querySelector('.flex-1.overflow-hidden');
+                        if (header) header.scrollLeft = e.target.scrollLeft;
+                    }}
+                >
+                    <div className="relative" style={{ width: days.length * cellWidth, minHeight: allTasksArray.length * 48 }}>
+                        {/* Grid */}
                         <div className="absolute inset-0 flex pointer-events-none">
                             {days.map((day, i) => {
                                 const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                                 return (
-                                    <div 
-                                        key={`grid-${i}`} 
+                                    <div
+                                        key={`grid-${i}`}
                                         className={`shrink-0 h-full border-r border-slate-700/30 ${isWeekend ? 'bg-slate-800/20' : ''} ${isToday ? 'bg-blue-500/5 border-blue-500/20' : ''}`}
                                         style={{ width: cellWidth }}
-                                    ></div>
+                                    />
                                 );
                             })}
                         </div>
-                        
+
                         {/* Task Bars */}
                         {allTasksArray.map((task, index) => {
                             const { left, width, bgColor, barBorder } = getTaskStyles(task);
-                            const top = index * 48; // 48px is equivalent to h-12
-
+                            const top = index * 48;
                             return (
-                                <div 
+                                <div
                                     key={`bar-${task.id}`}
-                                    className="absolute h-12 flex items-center group pointer-events-none"
-                                    style={{ top, left, width: '100%' }}
+                                    className="absolute h-12 flex items-center pointer-events-none"
+                                    style={{ top, left: 0, width: '100%' }}
                                 >
-                                    <div 
-                                        className={`absolute h-7 rounded-md border border-t ${bgColor} ${barBorder} shadow-sm cursor-pointer pointer-events-auto transition-all bg-opacity-90 hover:bg-opacity-100 hover:shadow-lg flex items-center px-2 overflow-hidden backdrop-blur-sm`}
-                                        style={{ width, minWidth: '4px' }}
+                                    <div
+                                        className={`absolute h-7 rounded-md border ${bgColor} ${barBorder} shadow-sm cursor-pointer pointer-events-auto transition-all flex items-center px-2 overflow-hidden backdrop-blur-sm`}
+                                        style={{ left, width, minWidth: '4px' }}
                                         onClick={() => onTaskClick(task)}
                                     >
                                         {width > 30 && (
